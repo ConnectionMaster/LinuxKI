@@ -35,6 +35,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "html.h"
 #include "futex.h"
 #include "conv.h"
+#include "oracle.h"
 #include <ncurses.h>
 #include <curses.h>
 
@@ -187,7 +188,10 @@ update_sched_time(void *arg, uint64 curtime)
 
 	/* fprintf (stderr, "update_sched_time() statp: %p  curtime: %lld  last_cur_time: %lld\n", statp, curtime, statp->last_cur_time);  */
 
-	if (statp->state & ZOMBIE) return 0;
+	if (statp->state & ZOMBIE) {
+		statp->last_cur_time = curtime;
+		return 0;
+	}
 
 	if (statp->last_cur_time) {
 		delta = curtime - statp->last_cur_time;
@@ -374,11 +378,11 @@ update_slp_info(pid_info_t *pidp, void *arg2, uint64 delta, uint64 wpid)
         uint64          key;
 
         if (pidp->last_stack_depth == 0) return;
+	if (key == STACK_CONTEXT_USER) return;
 
-        key = convert_pc_to_key(pidp->last_stktrc[0]);
+        key = convert_pc_to_key(STACK_CONTEXT_KERNEL, pidp, pidp->last_stktrc[0]);
 
 	/* this means no kernel stack was collected */
-	if (key == STACK_CONTEXT_USER) return;
 
         slpinfop = GET_SLPINFOP(slp_hash, key);
         slpinfop->count++;
@@ -401,6 +405,7 @@ update_stktrc_info(uint64 last_stktrc[], uint64 stack_depth, void ***arg2, uint6
 	stktrc_info_t *stktrcp;
 	uint64		key;
 	uint64 stktrc[LEGACY_STACK_DEPTH];
+	uint64		mode = STACK_CONTEXT_KERNEL;
 	int cnt, i, len;
 
 	if (cluster_flag) return;   /* don't collect stack traces for cluster-wide reporting */
@@ -410,7 +415,8 @@ update_stktrc_info(uint64 last_stktrc[], uint64 stack_depth, void ***arg2, uint6
 		if ((pidp == NULL) && (last_stktrc[i] == STACK_CONTEXT_USER)) {
 			break;
 		}
-		stktrc[i] = convert_pc_to_key(last_stktrc[i]);
+		if (last_stktrc[i] == STACK_CONTEXT_USER) mode = STACK_CONTEXT_USER;
+		stktrc[i] = convert_pc_to_key(mode, pidp, last_stktrc[i]);
 	}
 
 	len = i * sizeof(uint64);
@@ -633,7 +639,7 @@ sched_rqhist_wakeup(int cpu, pid_info_t *pidp, int old_state, uint64 runq_time)
         }
 
         time = runq_time / 1000;
-        if (perpid_stats && !kparse_flag) {
+        if (perpid_stats || kparse_flag) {
                 trqinfop = GET_ADD_RQINFOP(&schedp->rqinfop);
                 incr_runq_stats (trqinfop, old_state, time, migrated, ldom_migrated);
 
@@ -699,7 +705,7 @@ sched_rqhist_resume(int cpu, pid_info_t *pidp, int old_state, uint64 runq_time)
 */
         time = runq_time / 1000;
 
-        if (perpid_stats && !kparse_flag) {
+        if (perpid_stats || kparse_flag) {
                 trqinfop = GET_ADD_RQINFOP(&schedp->rqinfop);
                 incr_runq_stats (trqinfop, old_state, time, migrated, ldom_migrated);
 
@@ -912,6 +918,7 @@ sched_wakeup_func(void *a, void *v)
 
 		    if (sleep_stats) update_slp_info(tpidp, &tpidp->slp_hash, delta, 0);
 		    if (stktrc_stats) update_stktrc_info(&tpidp->last_stktrc[0], tpidp->last_stack_depth, &tpidp->stktrc_hash, delta, tpidp);
+		    if (tpidp->last_ora_wait) update_oracle_wait_event(tpidp, delta);
 		    if (global_stats) {
 			gschedp = GET_ADD_SCHEDP(&globals->schedp);
 			if (sleep_stats) update_slp_info(tpidp, &globals->slp_hash, delta, 0);
@@ -1575,6 +1582,7 @@ sched_switch_func(void *a, void *v)
 				uint64 start;
 				start = find_switch_start(&rec_ptr->ips[0], rec_ptr->stack_depth);
 				pidp->last_stack_depth = save_entire_stack(&pidp->last_stktrc[0], &rec_ptr->ips[start], rec_ptr->stack_depth-start);
+				pidp->last_ora_wait = get_oracle_wait_event(pidp, &rec_ptr->ips[start], rec_ptr->stack_depth-start);
 			}
 		} else if ((statp->state & RUNQ) && (stktrc_stats || sleep_stats) && rec_ptr->stack_depth) {
 				uint64 start;
@@ -1662,6 +1670,7 @@ sched_switch_func(void *a, void *v)
 		/* special case for zombie processes, this is done AFTER update_sched_time() */
 		if (rec_ptr->prev_state & (EXIT_ZOMBIE | EXIT_DEAD | TASK_DEAD)) {
 			statp->state = ZOMBIE;
+			statp->C_terminated_cnt++;
 		} 
 
 	} else {

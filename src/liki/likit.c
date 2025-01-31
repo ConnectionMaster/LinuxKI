@@ -18,7 +18,7 @@
  *
  * likit.c	LInux Kernel Instrumentation
  *
- *		v7.1
+ *		v7.10
  *		colin.honess@gmail.com
  *		mark.ray@hpe.com
  *		pokilfoyle@gmail.com
@@ -46,7 +46,7 @@
 #include <linux/profile.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
-#include <linux/genhd.h>
+/* #include <linux/genhd.h> */
 #include <asm/syscall.h>
 #include <linux/hardirq.h>
 #include <linux/irq.h>
@@ -66,20 +66,34 @@
 #if defined CONFIG_X86_64
 #include <../arch/x86/include/asm/unistd.h>
 #include <../arch/x86/include/asm/stacktrace.h>
-#define	IS_32BIT	test_thread_flag(TIF_IA32)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+#define IS_32BIT(regs)  !user_64bit_mode(regs)
+#else
+#define	IS_32BIT(regs)	test_thread_flag(TIF_IA32)
+#endif
 
 #elif defined CONFIG_ARM64
 #include <../arch/arm64/include/asm/unistd.h>
 #include <../arch/arm64/include/asm/stacktrace.h>
-#define IS_32BIT	test_thread_flag(TIF_32BIT)
+#define IS_32BIT(regs)   test_thread_flag(TIF_32BIT)
 
 #elif defined CONFIG_PPC64
 #include <../arch/powerpc/include/asm/unistd.h>
 #include <../include/linux/stacktrace.h>
-#define IS_32BIT	test_thread_flag(TIF_32BIT)
+#define IS_32BIT(regs)   test_thread_flag(TIF_32BIT)
 
 #else
 Confused about platform!
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL8)
+#define ACCESS_OK(flag, addr, size) access_ok(flag, addr, size)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL81 || defined RHEL82 || defined RHEL86)
+#define ACCESS_OK(flag, addr, size) access_ok(addr, size)
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
+#define ACCESS_OK(flag, addr, size) access_ok(flag, addr, size)
+#else
+#define ACCESS_OK(flag, addr, size) access_ok(addr, size)
 #endif
 
 #ifndef NR_syscalls
@@ -268,9 +282,19 @@ STATIC char		ignored_syscalls32[NR_syscalls];
 static struct socket *(*sockfd_lookup_light_fp)(int, int *, int *);
 #endif
 
+static int (*vfs_fstat_fp)(int, struct kstat *);
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-/* Do nothing, we will call stack_trace_save() later */
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL82)
+struct stack_trace {
+	unsigned int nr_entries, max_entries;
+	unsigned long *entries;
+	int skip;	/* input argument: How many entries to skip */
+};
+
+void save_stack_trace_regs(struct stack_trace*, struct pt_regs*);
+int init_trace_state(void);
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL82 || defined RHEL86)
 unsigned int (*stack_trace_save_regs_fp)(struct pt_regs*, unsigned long *, unsigned int, unsigned int);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
 static struct stack_trace *(*save_stack_trace_regs_fp)(struct pt_regs*, struct stack_trace*);
@@ -398,7 +422,7 @@ struct tp_struct tp_table[];
 #define synchronize_sched() synchronize_rcu()
 #else
 
-#if (defined RHEL82) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0)
+#if ((defined RHEL82) || (defined RHEL86)) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0)
 #define synchronize_sched() synchronize_rcu()
 #endif
 
@@ -466,12 +490,6 @@ struct tp_struct tp_table[];
 #ifdef CONFIG_X86_64
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
-struct stack_trace {
-	unsigned int nr_entries, max_entries;
-	unsigned long *entries;
-	int skip;	/* input argument: How many entries to skip */
-};
-
 void save_stack_trace_regs(struct stack_trace *st, struct pt_regs *regs)
 {
 	st->nr_entries = stack_trace_save(st->entries, st->max_entries, st->skip);
@@ -480,7 +498,7 @@ void save_stack_trace_regs(struct stack_trace *st, struct pt_regs *regs)
 #define STACK_TRACE(DATA, REGS)						\
 	save_stack_trace_regs(DATA, NULL);
 
-#elif (defined RHEL82)
+#elif (defined RHEL82 || defined RHEL86)
 
 void save_stack_trace_regs(struct stack_trace *st, struct pt_regs *regs)
 {
@@ -490,15 +508,15 @@ void save_stack_trace_regs(struct stack_trace *st, struct pt_regs *regs)
 #define STACK_TRACE(DATA, REGS)						\
 	save_stack_trace_regs(DATA, NULL);
 
-#elif (defined RHEL8)
+#elif (defined RHEL8 || defined RHEL81)
 #define STACK_TRACE(DATA, REGS)						\
 	save_stack_trace_regs_fp(NULL, DATA);
 
-#elif (defined SLES15)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0) && ((defined SLES12) || (defined SLES15) || (defined SLES15SP5))
 #define STACK_TRACE(DATA, REGS)						\
 	save_stack_trace_regs_fp(NULL, DATA);
 
-#elif LINUX_VERSION_CODE > KERNEL_VERSION(4,0,0)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
 #define STACK_TRACE(DATA, REGS)						\
 	save_stack_trace_regs_fp(REGS, DATA);
 
@@ -579,8 +597,25 @@ save_stack_trace(DATA);
 #endif
 
 #elif defined CONFIG_ARM64
-#define STACK_TRACE(DATA, REGS)						\
-	save_stack_trace(DATA);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
+struct stack_trace {
+        unsigned int nr_entries, max_entries;
+        unsigned long *entries;
+        int skip;       /* input argument: How many entries to skip */
+};
+
+void save_stack_trace_regs(struct stack_trace *st, struct pt_regs *regs)
+{
+        st->nr_entries = stack_trace_save(st->entries, st->max_entries, st->skip);
+}
+
+#define STACK_TRACE(DATA, REGS)                                         \
+        save_stack_trace_regs(DATA, NULL);
+
+#else
+#define STACK_TRACE(DATA, REGS)                                         \
+        save_stack_trace(DATA);
+#endif
 
 #endif // CONFIG_ARM64
 
@@ -630,7 +665,7 @@ liki_copy_from_user(void *to, const void __user *from, unsigned long n)
         else
                 return 0;
 #else
-        if (__range_not_ok(from, n, TASK_SIZE))
+        if (!ACCESS_OK(VERIFY_READ, from, n))
                 return n;
 
         pagefault_disable();
@@ -699,7 +734,7 @@ liki_stack_unwind(struct pt_regs *regs, int skip, int *start)
 			regs = NULL;
 	}
 
-	if (regs && !IS_32BIT) {
+	if (regs && !IS_32BIT(regs)) {
 
 		callchain->ip[callchain->nr++] = STACK_CONTEXT_USER;
 		callchain->ip[callchain->nr++] = regs->ip;
@@ -894,7 +929,7 @@ liki_stack_unwind(struct pt_regs *regs, int skip, int *start)
 	
 
 	/* for user stacks, regs must be filled out */
-	if (regs && !IS_32BIT) {
+	if (regs && !IS_32BIT(regs)) {
 		callchain->ip[callchain->nr++] = STACK_CONTEXT_USER;
 		callchain->ip[callchain->nr++] = regs->pc;
 
@@ -902,7 +937,7 @@ liki_stack_unwind(struct pt_regs *regs, int skip, int *start)
 
 		while (callchain->nr < MAX_STACK_DEPTH && fp &&
 			!((unsigned long)fp & 0xf)) {
-			if (!access_ok(VERIFY_READ, fp, sizeof(buftail)))
+			if (!ACCESS_OK(VERIFY_READ, fp, sizeof(buftail)))
 				break;
 
 			pagefault_disable();
@@ -1023,7 +1058,8 @@ restore_sles11_backtrace_state(void)
 	if (__liki_old_call_trace_state == BOGUS_CALL_TRACE) {
 
 		/* Very unexpected! */
-		printk(KERN_WARNING "LiKI: BOGUS_CALL_TRACE found. Please report to HP.\n");
+		printk(KERN_WARNING "LiKI: BOGUS_CALL_TRACE found. Please log issue at https://github.com/HewlettPackard/LinuxKI/issues\n");
+
 		return;
 	}
 
@@ -1473,8 +1509,7 @@ fork_hook(struct task_struct *this, struct task_struct *new)
 #define	CHUNKS_PER_BUFFER	16
 #define BUFFER_SIZE		(CHUNK_SIZE * CHUNKS_PER_BUFFER)
 
-int
-init_trace_state(void)
+int init_trace_state(void)
 {
 	int 	cpu = 0;
 	int	set_main_man = 0;
@@ -1745,6 +1780,7 @@ startup_msr(void)
 	}
 
 	/* only allow Advanced CPU statistics on known CPUs */
+	/* see intel-family.h in kernel source.   See include/asm/intel-family.h */
 	switch (boot_cpu_data.x86_model) {
 		case 26: 	/* INTEL_FAM6_NEHALEM_EP - 45nm Nahalem-EP */
 		case 30:	/* INTEL_FAM6_NEHALEM - 45nm Nahalem */
@@ -1771,6 +1807,16 @@ startup_msr(void)
 		case 78:	/* 14nm SkyLake Mobile  */
 		case 85:	/* 14nm SkyLake (Purley) */
 		case 94:	/* 14nm SkyLake Desktop  */		
+
+		case 0x6a:      /* Ice Lake X */
+		case 0x6c:      /* Ice Lake D */
+		case 0x7d:      /* Ice Lake */
+		case 0x7e:      /* Ice Lake L */
+		case 0x9d:      /* Ice Lake NNPI */
+
+		case 0x8f:      /* SapphireRapids */
+		case 0xcf:      /* EmeraldRapids */
+
 			break;
 		case 87:	/* Knights Landing - needs testing!!! */
 		case 133:	/* Knights Mill - needs testing!!! */
@@ -2440,7 +2486,13 @@ sched_switch_trace(RXUNUSED struct rq *rq, struct task_struct *p, struct task_st
 		t->syscallno = -1; 
 
 	t->prev_prio = p->prio;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) 
+	t->prev_state = p->__state;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL86)
+	t->prev_state = p->__state;
+#else
 	t->prev_state = p->state;
+#endif
 
 	/* All the times returned by LiKI are expressed in nanoseconds.
 	 * While the IRQ times are currently maintained in kernel in the much 
@@ -2670,12 +2722,17 @@ sched_migrate_task_trace(RXUNUSED struct task_struct *p, unsigned int new_cpu)
 	return;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0) || (defined RHEL9) || (defined SLES15SP5)
+#define GENDISK q->disk
+#else
+#define GENDISK r->rq_disk
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)					
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)					
 #define POPULATE_COMMON_BLOCK_FIELDS(q, r, T)						\
-	T->dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;				\
+	T->dev = GENDISK ? disk_devt(GENDISK) : 0;				\
 	T->sector = blk_rq_is_passthrough(r) ? 0 : blk_rq_pos(r);			\
 	T->nr_sectors = blk_rq_is_passthrough(r) ? 0 : blk_rq_sectors(r);	 	\
 	T->cmd_type = 0;								\
@@ -2684,7 +2741,7 @@ sched_migrate_task_trace(RXUNUSED struct task_struct *p, unsigned int new_cpu)
 	T->sync_in_flight = q->in_flight[BLK_RW_SYNC];					
 #else
 #define POPULATE_COMMON_BLOCK_FIELDS(q, r, T)						\
-	T->dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;				\
+	T->dev = GENDISK ? disk_devt(GENDISK) : 0;				\
 	T->sector = blk_rq_is_passthrough(r) ? 0 : blk_rq_pos(r);			\
 	T->nr_sectors = blk_rq_is_passthrough(r) ? 0 : blk_rq_sectors(r);	 	\
 	T->cmd_type = 0;								\
@@ -2695,7 +2752,7 @@ sched_migrate_task_trace(RXUNUSED struct task_struct *p, unsigned int new_cpu)
 
 #else
 #define POPULATE_COMMON_BLOCK_FIELDS(q, r, T)						\
-	T->dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;				\
+	T->dev = GENDISK ? disk_devt(GENDISK) : 0;				\
 	T->sector = (unsigned long)((r->cmd_type == REQ_TYPE_BLOCK_PC) ? 		\
 			0 : blk_rq_pos(r));						\
 	T->nr_sectors = (r->cmd_type == REQ_TYPE_BLOCK_PC) ? 0 : blk_rq_sectors(r); 	\
@@ -2707,16 +2764,34 @@ sched_migrate_task_trace(RXUNUSED struct task_struct *p, unsigned int new_cpu)
 
 
 STATIC void
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+block_rq_insert_trace(RXUNUSED struct request *r)
+#else
 block_rq_insert_trace(RXUNUSED struct request_queue *q, struct request *r)
+#endif
 {
 	block_rq_insert_t	*t;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+	struct request_queue	*q;
+#endif
 	unsigned int		sz;
 	TRACE_COMMON_DECLS;
 
 	if (unlikely(tracing_state == TRACING_DISABLED))
 		return;
 
-	if (unlikely(!r || !q)) {
+	if (unlikely(!r)) {
+#ifdef __LIKI_DEBUG
+		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_insert_trace()\n");
+#endif
+		return;
+	}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+		q = r->q;
+#endif
+
+	if (unlikely(!q)) {
 #ifdef __LIKI_DEBUG
 		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_insert_trace()\n");
 #endif
@@ -2725,7 +2800,7 @@ block_rq_insert_trace(RXUNUSED struct request_queue *q, struct request *r)
 
 	if (unlikely(tracing_state == TRACING_RESOURCES)) {
 
-		dev_t	dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;
+		dev_t	dev = GENDISK ? disk_devt(GENDISK) : 0;
 
 		if (!(resource_is_traced(PID_RESOURCE(current->pid)) ||
 		      resource_is_traced(TGID_RESOURCE(current->tgid)) ||
@@ -2759,24 +2834,39 @@ block_rq_insert_trace(RXUNUSED struct request_queue *q, struct request *r)
 }
 
 STATIC void
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+block_rq_issue_trace(RXUNUSED struct request *r)
+#else
 block_rq_issue_trace(RXUNUSED struct request_queue *q, struct request *r)
+#endif
+
 {
 	block_rq_issue_t	*t;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+	struct request_queue	*q;
+#endif
 	TRACE_COMMON_DECLS;
 
 	if (unlikely(tracing_state == TRACING_DISABLED))
 		return;
 
 	if (unlikely(!r)) {
-#ifdef __LIKI_DEBUG
-		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_issue_trace()\n");
+		printk(KERN_WARNING "LiKI: NULL request pointer passed to block_rq_issue_trace()\n");
+		return;
+	}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+	q = r->q;
 #endif
+
+	if (unlikely(!q)) {
+		printk(KERN_WARNING "LiKI: NULL request pointer passed to block_rq_issue_trace()\n");
 		return;
 	}
 
 	if (unlikely(tracing_state == TRACING_RESOURCES)) {
 
-		dev_t	dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;
+		dev_t	dev = GENDISK ? disk_devt(GENDISK) : 0;
 
 		if ((enabled_features & DEVICE_FILTERING) &&
 		    !resource_is_traced(DEVICE_RESOURCE(dev)))
@@ -2823,7 +2913,7 @@ block_rq_complete_trace(RXUNUSED struct request_queue *q, struct request *r)
 {
 	block_rq_complete_t	*t;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
-	struct request_queue	*q = r->q;
+	struct request_queue	*q;
 #endif
 
 	TRACE_COMMON_DECLS;
@@ -2842,9 +2932,16 @@ block_rq_complete_trace(RXUNUSED struct request_queue *q, struct request *r)
 	q = r->q;
 #endif
 
+	if (unlikely(!q)) {
+#ifdef __LIKI_DEBUG
+		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_complete_trace()\n");
+#endif
+		return;
+	}
+
 	if (unlikely(tracing_state == TRACING_RESOURCES)) {
 
-		dev_t	dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;
+		dev_t	dev = GENDISK ? disk_devt(GENDISK) : 0;
 
 		if ((enabled_features & DEVICE_FILTERING) &&
 		    !resource_is_traced(DEVICE_RESOURCE(dev)))
@@ -2880,66 +2977,17 @@ block_rq_complete_trace(RXUNUSED struct request_queue *q, struct request *r)
 	return;
 }
 
-/* This is obsolete, but keeping for now */
-#if 0
 STATIC void
-block_rq_abort_trace(RXUNUSED struct request_queue *q, struct request *r)
-{
-	block_rq_abort_t	*t;
-	TRACE_COMMON_DECLS;
-
-	if (unlikely(tracing_state == TRACING_DISABLED))
-		return;
-
-	if (unlikely(!r)) {
-#ifdef __LIKI_DEBUG
-		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_abort_trace()\n");
-#endif
-		return;
-	}
-
-	if (unlikely(tracing_state == TRACING_RESOURCES)) {
-
-		dev_t	dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;
-
-		if ((enabled_features & DEVICE_FILTERING) &&
-		    !resource_is_traced(DEVICE_RESOURCE(dev)))
-			return;
-	}
-
-	raw_local_irq_save(flags);
-
-	mycpu = raw_smp_processor_id();
-	tb = &tbufs[mycpu];
-
-	if (unlikely((t = (block_rq_abort_t *)trace_alloc(TRACE_SIZE(block_rq_abort_t), FALSE)) == NULL)) {
-		raw_local_irq_restore(flags);
-		return;
-	}
-
-	POPULATE_COMMON_FIELDS(t, TT_BLOCK_RQ_ABORT, TRACE_SIZE(block_rq_abort_t), ORDERED);
-	POPULATE_COMMON_BLOCK_FIELDS(q, r, t);
-	t->errors = 0;
-#ifdef CONFIG_BLK_CGROUP
-	t->start_time_ns = r->start_time_ns;
-	t->io_start_time_ns = r->io_start_time_ns;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+block_rq_requeue_trace(RXUNUSED struct request *r)
 #else
-	t->start_time_ns = 0;
-	t->io_start_time_ns = 0;
-#endif
-
-	trace_commit(t);
-
-	raw_local_irq_restore(flags);
-
-	return;
-}
-#endif
-
-STATIC void
 block_rq_requeue_trace(RXUNUSED struct request_queue *q, struct request *r)
+#endif
 {
 	block_rq_requeue_t	*t;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+	struct request_queue	*q;
+#endif
 	TRACE_COMMON_DECLS;
 
 	if (unlikely(tracing_state == TRACING_DISABLED))
@@ -2952,9 +3000,20 @@ block_rq_requeue_trace(RXUNUSED struct request_queue *q, struct request *r)
 		return;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0) || (defined RHEL86)
+	q = r->q;
+#endif
+
+	if (unlikely(!q)) {
+#ifdef __LIKI_DEBUG
+		printk(KERN_WARNING "LiKI: NULL pointer passed to block_rq_requeue_trace()\n");
+#endif
+		return;
+	}
+
 	if (unlikely(tracing_state == TRACING_RESOURCES)) {
 
-		dev_t	dev = r->rq_disk ? disk_devt(r->rq_disk) : 0;
+		dev_t	dev = GENDISK ? disk_devt(GENDISK) : 0;
 
 		if ((enabled_features & DEVICE_FILTERING) &&
 		    !resource_is_traced(DEVICE_RESOURCE(dev)))
@@ -3331,7 +3390,7 @@ syscall_enter_trace(RXUNUSED struct pt_regs *regs, long syscallno)
 			return;
 	}
 
-	if (unlikely(IS_32BIT)) {
+	if (unlikely(IS_32BIT(regs))) {
 		if (unlikely(ignored_syscalls32[syscallno])) 
 			return;
 	} else {
@@ -3339,7 +3398,7 @@ syscall_enter_trace(RXUNUSED struct pt_regs *regs, long syscallno)
 			return;
 	}
 
-	if (IS_32BIT) goto scentry_skip_vldata;
+	if (IS_32BIT(regs)) goto scentry_skip_vldata;
 
 	/* Some syscalls get special treatment. These guys have useful data that is 
  	 * pointed to by an argument, so we go follow that pointer and pull the real
@@ -3373,6 +3432,9 @@ syscall_enter_trace(RXUNUSED struct pt_regs *regs, long syscallno)
 #endif
 #ifdef __NR_lstat
 	case	__NR_lstat:
+#endif
+#ifdef __NR_statfs
+	case	__NR_statfs:
 #endif
 #ifdef __NR_unlink
 	case	__NR_unlink:
@@ -3887,7 +3949,7 @@ scentry_skip_vldata:
 
 	t->syscallno = syscallno;
 
-	if (IS_32BIT)
+	if (IS_32BIT(regs))
 		t->is32bit = TRUE;
 	else
 		t->is32bit = FALSE;
@@ -3935,15 +3997,17 @@ syscall_exit_trace(RXUNUSED struct pt_regs *regs, long ret)
 
 	syscallno = syscall_get_nr(current, regs);
 
-	if (unlikely(IS_32BIT)) {
-		if (unlikely(ignored_syscalls32[syscallno])) 
-			return;
-	} else {
-		if (unlikely(ignored_syscalls64[syscallno])) 
-			return;
+	if (syscallno >= 0) {
+		if (unlikely(IS_32BIT(regs))) {
+			if (unlikely(ignored_syscalls32[syscallno])) 
+				return;
+		} else {
+			if (unlikely(ignored_syscalls64[syscallno])) 
+				return;
+		}
 	}
 
-	if (IS_32BIT) goto scexit_skip_vldata;
+	if (IS_32BIT(regs)) goto scexit_skip_vldata;
 
 	switch (syscallno) {
 
@@ -4348,8 +4412,11 @@ syscall_exit_trace(RXUNUSED struct pt_regs *regs, long ret)
 			}
 
 		} else {
+			/* if target if NFS file, we have issues which can cause softlockups, so skip this!! */
+			goto scexit_skip_vldata;
 
- 			if (vfs_fstat(fd, &stat_struct) != 0) 
+
+ 			if (vfs_fstat_fp(fd, &stat_struct) != 0) 
  				goto scexit_skip_vldata;
 
  			fileaddr = (fileaddr_t *)&local;
@@ -4652,7 +4719,7 @@ scexit_skip_vldata:
 
 	POPULATE_COMMON_FIELDS(t, TT_SYSCALL_EXIT, sz, UNORDERED);
 	t->syscallno = syscallno;
-	if (IS_32BIT)
+	if (IS_32BIT(regs))
 		t->is32bit = TRUE;
 	else
 		t->is32bit = FALSE;
@@ -4864,6 +4931,71 @@ STATIC struct jprobe jphc = {
 	},
 };
 
+#endif
+
+long unsigned int kln_addr = 0;
+unsigned long (*kallsyms_lookup_name_fp)(const char *name) = NULL;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0) 
+/* This code is derived from https://github.com/zizzu0/LinuxKernelModules/blob/main/FindKallsymsLookupName.c
+* kallsyms_lookup_name undefined and finding not exported functions in the linux kernel
+*
+* zizzu 2020
+*
+* On kernels 5.7+ kallsyms_lookup_name is not exported anymore, so it is not usable in kernel modules.
+* The address of this function is visible via /proc/kallsyms
+* but since the address is randomized on reboot, hardcoding a value is not possible.
+* A kprobe replaces the first instruction of a kernel function
+* and saves cpu registers into a struct pt_regs *regs and then a handler
+* function is executed with that struct as parameter.
+* The saved value of the instruction pointer in regs->ip, is the address of probed function + 1.
+* A kprobe on kallsyms_lookup_name can read the address in the handler function.
+* Internally register_kprobe calls kallsyms_lookup_name, which is visible for this code, so,
+* planting a second kprobe, allow us to get the address of kallsyms_lookup_name without waiting
+* and then we can call this address via a function pointer, to use kallsyms_lookup_name in our module.
+*
+* example for _x86_64.
+*/
+
+#define KPROBE_PRE_HANDLER(fname) static int __kprobes fname(struct kprobe *p, struct pt_regs *regs)
+
+static struct kprobe kp0, kp1;
+
+KPROBE_PRE_HANDLER(handler_pre0)
+{
+#if defined CONFIG_ARM64
+  kln_addr = (regs->pc);
+#else 
+  kln_addr = (--regs->ip);
+#endif
+
+  return 0;
+}
+
+KPROBE_PRE_HANDLER(handler_pre1)
+{
+  return 0;
+}
+
+static int do_register_kprobe(struct kprobe *kp, char *symbol_name, void *handler)
+{
+  int ret;
+
+  kp->symbol_name = symbol_name;
+  kp->pre_handler = handler;
+
+  ret = register_kprobe(kp);
+  if (ret < 0) {
+    pr_err("register_probe() for symbol %s failed, returned %d\n", symbol_name, ret);
+    return ret;
+  }
+
+#ifdef __LIKI_DEBUG
+  pr_info("Planted kprobe for symbol %s at %p\n", symbol_name, kp->addr);
+#endif
+
+  return ret;
+}
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0) || (defined(CONFIG_PPC64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)))
@@ -5302,6 +5434,92 @@ softirq_raise_trace(RXUNUSED struct softirq_action *h, struct softirq_action *ve
 
 	return;
 }
+
+#ifndef CONFIG_ARM64
+STATIC void
+call_function_entry_trace(RXUNUSED unsigned int vec_nr)
+{
+	softirq_entry_t	*t;
+	TRACE_COMMON_DECLS;
+	
+	if (unlikely(tracing_state == TRACING_DISABLED))
+		return;
+
+	if (unlikely(tracing_state == TRACING_RESOURCES)) {
+
+		if (!(resource_is_traced(PID_RESOURCE(current->pid)) ||
+		      resource_is_traced(TGID_RESOURCE(current->tgid)) ||
+		      resource_is_traced(CPU_RESOURCE(raw_smp_processor_id()))))
+
+			return;
+	}
+
+	raw_local_irq_save(flags);
+
+	mycpu = raw_smp_processor_id();
+	tb = &tbufs[mycpu];
+
+	if (unlikely((t = (softirq_entry_t *)trace_alloc(TRACE_SIZE(softirq_entry_t), FALSE)) == NULL)) {
+		raw_local_irq_restore(flags);
+		return;
+	}
+
+	POPULATE_COMMON_FIELDS(t, TT_CALL_FUNCTION_ENTRY, TRACE_SIZE(softirq_entry_t), UNORDERED);
+	/* Set the PID of the process that was running when the IRQ occured, similar to ftrace */
+	t->pid = current->pid;
+	t->tgid = current->tgid;
+
+	t->vec = vec_nr;
+
+	trace_commit(t);
+
+	raw_local_irq_restore(flags);
+
+	return;
+}
+
+STATIC void
+call_function_exit_trace(RXUNUSED unsigned int vec_nr)
+{
+	softirq_exit_t	*t;
+	TRACE_COMMON_DECLS;
+
+	if (unlikely(tracing_state == TRACING_DISABLED))
+		return;
+
+	if (unlikely(tracing_state == TRACING_RESOURCES)) {
+
+		if (!(resource_is_traced(PID_RESOURCE(current->pid)) ||
+		      resource_is_traced(TGID_RESOURCE(current->tgid)) ||
+		      resource_is_traced(CPU_RESOURCE(raw_smp_processor_id()))))
+
+			return;
+	}
+
+	raw_local_irq_save(flags);
+
+	mycpu = raw_smp_processor_id();
+	tb = &tbufs[mycpu];
+
+	if (unlikely((t = (softirq_exit_t *)trace_alloc(TRACE_SIZE(softirq_exit_t), FALSE)) == NULL)) {
+		raw_local_irq_restore(flags);
+		return;
+	}
+
+	POPULATE_COMMON_FIELDS(t, TT_CALL_FUNCTION_EXIT, TRACE_SIZE(softirq_exit_t), UNORDERED);
+	/* Set the PID of the process that was running when the IRQ occured, similar to ftrace */
+	t->pid = current->pid;
+	t->tgid = current->tgid;
+
+	t->vec = vec_nr;
+
+	trace_commit(t);
+
+	raw_local_irq_restore(flags);
+
+	return;
+}
+#endif  /* ifndef CONFIG_ARM64 */
 
 
 STATIC void
@@ -6168,8 +6386,13 @@ struct tp_struct tp_table[TT_NUM_PROBES] = {
 	{NULL, "scsi_dispatch_cmd_done", scsi_dispatch_cmd_done_trace},
 	{NULL, NULL, NULL},
 	{NULL, NULL, NULL},
+#ifndef CONFIG_ARM64
+	{NULL, "call_function_entry", call_function_entry_trace},
+	{NULL, "call_function_exit", call_function_exit_trace},
+#else
 	{NULL, NULL, NULL},
 	{NULL, NULL, NULL},
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 	{NULL, "mm_filemap_fault", mm_filemap_fault_trace},
 #else
@@ -6196,8 +6419,15 @@ struct tp_struct tp_table[TT_NUM_PROBES] = {
 #else 
 	{NULL, "mm_page_free_direct", mm_page_free_trace},
 #endif
+#ifndef CONFIG_ARM64
+	{NULL, "call_function_single_entry", call_function_entry_trace},
+	{NULL, "call_function_single_exit", call_function_exit_trace},
+#else
+	{NULL, NULL, NULL},
+	{NULL, NULL, NULL},
+#endif
 	{NULL, "sched_process_exit", exit_hook},
-	{NULL, "sched_process_fork", fork_hook}
+	{NULL, "sched_process_fork", fork_hook},
 };
 
 
@@ -6250,8 +6480,9 @@ change_installed_traces(unsigned long requested_traces)
 		if (TRACE_ENABLED_IN(i, requested_traces)) {
 			if (liki_probe_register(i)) {
        				printk(KERN_WARNING "LiKI: could not enable %s trace\n", tp_table[i].name);
-			} else
+			} else {
 				new_installed_traces |= (TT_BIT(i));
+			}
 		}
 	}
 
@@ -6713,7 +6944,7 @@ init_tp_entry(struct tracepoint *tp, void *priv)
 	for (i=1; i<TT_NUM_PROBES; i++) {
 		if (tp->name && tp_table[i].name && (strcmp(tp->name, tp_table[i].name) == 0)) { 
 			tp_table[i].tp = tp;
-			/* printk(KERN_INFO "LiKI: event %d - %s initialized\n", i, tp->name); */
+			/* printk(KERN_INFO "LiKI: event %d - %s initialized\n", i, tp->name);  */
 		}
 	}
 
@@ -6724,12 +6955,15 @@ init_tp_entry(struct tracepoint *tp, void *priv)
 STATIC int
 liki_initialize(void)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+	int ret = 0;
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	int	i;
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,9,0)
 	printk(KERN_INFO "LiKI: unsupported kernel version\n");
 	return(-EINVAL);
 #else
@@ -6756,17 +6990,44 @@ liki_initialize(void)
 	 */
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+	ret = do_register_kprobe(&kp0, "kallsyms_lookup_name", handler_pre0);
+	if (ret < 0) return ret;
+
+	ret = do_register_kprobe(&kp1, "kallsyms_lookup_name", handler_pre1);
+	if (ret < 0) { 
+		unregister_kprobe(&kp0);
+		return ret;
+	}
+
+	unregister_kprobe(&kp0);
+	unregister_kprobe(&kp1);
+#ifdef __LIKI_DEBUG
+	printk(KERN_INFO "kallsyms_lookup_name address = 0x%lx\n", kln_addr);
+#endif
+
+	kallsyms_lookup_name_fp = (unsigned long (*)(const char *name)) kln_addr;
+
+#ifdef __LIKI_DEBUG
+  	printk(KERN_INFO "kallsyms_lookup_name address = 0x%lx\n", kallsyms_lookup_name_fp("kallsyms_lookup_name"));
+#endif
+
+#else
+	kallsyms_lookup_name_fp = (unsigned long (*)(const char *name))kallsyms_lookup_name;
+#endif
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	/* Nothing to do here as we will use sockfd_lookup() */
 #elif defined CONFIG_PPC64
-	if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name("sockfd_lookup")) == 0) {
+	if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name_fp("sockfd_lookup")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find sockfd_lookup()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
 #else
 
-        if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name("sockfd_lookup_light")) == 0) {
+        if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name_fp("sockfd_lookup_light")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find sockfd_lookup_light()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
@@ -6775,14 +7036,14 @@ liki_initialize(void)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	/* Nothing to do here as we will use stack_trace_save() */
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL82)
-	if ((stack_trace_save_regs_fp = (void *)kallsyms_lookup_name("stack_trace_save_regs")) == 0) {
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL82 || defined RHEL86)
+	if ((stack_trace_save_regs_fp = (void *)kallsyms_lookup_name_fp("stack_trace_save_regs")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find stack_trace_save_regs()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
-        if ((save_stack_trace_regs_fp = (void *)kallsyms_lookup_name("save_stack_trace_regs")) == 0) {
+        if ((save_stack_trace_regs_fp = (void *)kallsyms_lookup_name_fp("save_stack_trace_regs")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find save_stack_trace_regs()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
@@ -6790,11 +7051,21 @@ liki_initialize(void)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
-	if ((copy_from_user_nmi_fp = (void *)kallsyms_lookup_name("copy_from_user_nmi")) == 0) {
+	if ((copy_from_user_nmi_fp = (void *)kallsyms_lookup_name_fp("copy_from_user_nmi")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find copy_from_user_nmi()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0)
+	if ((vfs_fstat_fp = (void *)kallsyms_lookup_name_fp("vfs_fstat")) == 0) {
+		printk(KERN_WARNING "LiKI: cannot find copy_from_user_nmi()\n");
+		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
+		return(-EINVAL);
+	}
+#else
+	vfs_fstat_fp = (int (*)(int, struct kstat *))vfs_fstat;
 #endif
 
 	if (startup() != 0) {
@@ -6819,4 +7090,4 @@ module_exit(liki_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("colin.honess@gmail.com");
-MODULE_DESCRIPTION("LInux Kernel Instrumentation. Intended for use only under the guidance of HP.");
+MODULE_DESCRIPTION("LInux Kernel Instrumentation. Intended for use only under the guidance of HPE.");

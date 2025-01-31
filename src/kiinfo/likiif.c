@@ -95,6 +95,10 @@ trace_len(char *t)
 		case TT_MM_PAGE_FREE;
 		case TT_CACHE_INSERT:
 		case TT_CACHE_EVICT:
+		case TT_CALL_FUNCTION_ENTRY:
+		case TT_CALL_FUNCTION_EXIT:
+		case TT_CALL_FUNCTION_SINGLE_ENTRY:
+		case TT_CALL_FUNCTION_SINGLE_EXIT:
 			return(cp->reclen);
 		default:
 			fprintf(stderr, "LiKI: trace_len() passed an invalid trace! (id = %d)\n", cp->id);
@@ -154,8 +158,6 @@ init_debug_mountpoint(char * user_debug_dir)
 	return 0;
 }
 
-
-
 int
 liki_init(char *user_debug_dir)
 {
@@ -204,6 +206,38 @@ liki_init(char *user_debug_dir)
 		return(res);
 
 	liki_enabled = TRUE;
+
+	return(0);
+}
+
+int
+likiend_init(char *user_debug_dir)
+{
+	char		name[PATHLEN];
+	int		res;
+
+	if (liki_dir == NULL) init_debug_mountpoint(user_debug_dir) ;
+
+	/* Open the sync file */
+	sprintf(name, "%s/%s/%s", liki_debug_mountpoint, DEBUGFS_DIR_NAME, SYNC_FILE);
+	if ((liki_sf = open(name, O_RDWR)) < 0) {
+		fprintf (stderr, "Cannot open %s\n", name);
+		return -ENOENT;
+	}
+
+	/* Open the traced resources file */
+	sprintf(name, "%s/%s/%s", liki_debug_mountpoint, DEBUGFS_DIR_NAME, TRACED_RESOURCES_FILE);
+	if ((liki_trf = open(name, O_RDWR)) < 0) {
+		fprintf (stderr, "Cannot open %s\n", name); 
+		return -ENOENT;
+	}
+
+	/* Open trace enable file */
+	sprintf(name, "%s/%s/%s", liki_debug_mountpoint, DEBUGFS_DIR_NAME, TRACE_ENABLE_FILE);
+	if ((liki_tef = open(name, O_RDWR)) < 0) {
+		fprintf (stderr, "Cannot open %s\n", name); 
+		return(-ENOENT);
+	}
 
 	return(0);
 }
@@ -287,7 +321,7 @@ liki_get_tracemask()
 	unsigned long	mask;
 
 	if (read(liki_tef, &mask, sizeof(long)) != sizeof(long))  {
-		return(-1);
+		return(0ULL);
 	}
 
 	return(mask);
@@ -1072,7 +1106,8 @@ liki_pcpu_thread(void * vp_pcpu)
 	/* If sched_setscheduler fails, then skip this for the rest of the CPUs */
 	if ((sched_setscheduler(0, SCHED_RR, &sp) == -1) && (setsched_errs == 0)) {
 		perror("sched_setscheduler()");
-		fprintf(stderr, "failed to make per-CPU threads realtime (could be a bug in RHEL 7.3!)\n");
+		fprintf(stderr, "failed to make per-CPU threads realtime.  Continuing without realtime priority\n");
+	        fprintf(stderr, "See https://access.redhat.com/articles/3696121 or try to disable selinux\n");
 		setsched_errs = 1;
 	}
 
@@ -1308,7 +1343,9 @@ liki_merge_thread(void * mpv)
 	sp.sched_priority = sched_get_priority_min(SCHED_RR) + 1;
 	if (sched_setscheduler(0, SCHED_RR, &sp) == -1) {
 		perror("sched_setscheduler()");
-		fprintf(stderr, "failed to make per-CPU threads realtime\n");
+	        fprintf(stderr, "failed to make per-CPU threads realtime.  Continuing without realtime priority\n");
+                fprintf(stderr, "See https://access.redhat.com/articles/3696121 or try to disable selinux\n");
+
 	}
 #endif
 

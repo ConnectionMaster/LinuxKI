@@ -88,7 +88,6 @@ char ts_begin_marker[64];
 char ts_end_marker[64];
 
 FILE *dockfile = NULL;
-FILE *kipid_file = NULL;
 FILE *node_csvfile = NULL;
 FILE *pid_csvfile = NULL;
 FILE *dsk_csvfile = NULL;
@@ -101,6 +100,7 @@ FILE *cluster_csvfile = NULL;
 FILE *cluster_network_csvfile = NULL;
 FILE *server_vis_csvfile = NULL;
 FILE *cluster_vis_csvfile = NULL;
+FILE *syscofig_file = NULL;
 
 #include "custom_options.h"
 
@@ -165,7 +165,7 @@ main(int argc, char *argv[])
 	HR; BR;
 	PRE;
 
-	if (likidump_flag) {
+	if (likidump_flag || likistart_flag) {
 		if (geteuid() != 0) { 
 			fprintf (stderr, "You must run kinfo as root to collect a trace dump\n");
 			_exit(-1);
@@ -180,6 +180,15 @@ main(int argc, char *argv[])
 
 		likidump();
 		if (kgdboc_str) reset_kgdboc();
+		_exit(0);
+	} else if (likiend_flag) {
+		if (geteuid() != 0) { 
+			fprintf (stderr, "You must run kinfo as root to collect a trace dump\n");
+			_exit(-1);
+		}
+		
+		likiend();
+
 		_exit(0);
 	} else if (kitracedump_flag) {
 		if (geteuid() != 0) { 
