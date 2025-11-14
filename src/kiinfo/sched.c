@@ -840,7 +840,7 @@ sched_wakeup_func(void *a, void *v)
 	uint64 delta = 0, coop_delta = 0;
 	int fd;
 	fd_info_t *fdinfop, *tfdinfop;
-        uint64 tgid = 0;
+        uint64 w_pid=0, tgid = 0;
 
 	rec_ptr = conv_sched_wakeup(a, &tt_rec_ptr);
 
@@ -864,6 +864,12 @@ sched_wakeup_func(void *a, void *v)
 		schedp = (sched_info_t *)find_sched_info(pidp);
 		statp = &schedp->sched_stats;
 		statp->C_wakeup_cnt++;
+
+		if (statp->state & SOFTIRQ) {
+			w_pid = 0;
+		} else { 
+			w_pid = pidp->PID; 
+		}
 		
 		/* Thundering Herd Detection (only if wakeup is successful) */
 		if (rec_ptr->success && (rec_ptr->target_pid != schedp->last_target_pid)) {
@@ -1012,7 +1018,7 @@ sched_wakeup_func(void *a, void *v)
 			update_coop_stats(schedp, tschedp, pidp, tpidp, coop_delta, coop_old_state, WAKER);
                 }
                 if (tschedp)  {
-                        incr_setrq_stats((setrq_info_t ***)&tschedp->setrq_src_hash, rec_ptr->pid,
+                        incr_setrq_stats((setrq_info_t ***)&tschedp->setrq_src_hash, w_pid,
 					coop_old_state, coop_delta);
 			update_coop_stats(schedp, tschedp, pidp, tpidp, coop_delta, coop_old_state, SLEEPER);
                 }
@@ -1529,15 +1535,19 @@ sched_switch_func(void *a, void *v)
 		statp = &schedp->sched_stats;
 		statp->C_switch_cnt++;
 		old_state = statp->state;
-		if (rec_ptr->prev_state) {
-			statp->state = SWTCH | (old_state & (USER | SYS));
-			statp->C_sleep_cnt++;
-		} else {
-			if (old_state == UNKNOWN && (rec_ptr->syscallno > MAXSYSCALLS)) {
+
+		if (rec_ptr->prev_state == TASK_WAKEKILL) {
+				old_state = RUNNING | SYS;
+				statp->state = ZOMBIE;
+		} else if ((rec_ptr->prev_state == TASK_WAKING) || (rec_ptr->prev_state == TASK_RUNNING)) {
+			if ((old_state == UNKNOWN) && (rec_ptr->syscallno > MAXSYSCALLS)) {
 				old_state = RUNNING | USER;
 			}
 			statp->state = RUNQ | (old_state & (USER | SYS));
 			statp->C_preempt_cnt++;
+		} else {
+			statp->state = SWTCH | (old_state & (USER | SYS));
+			statp->C_sleep_cnt++;
 		}
 		delta = update_sched_time(statp, rec_ptr->hrtime);
 		update_sched_state(statp, old_state, statp->state, delta);

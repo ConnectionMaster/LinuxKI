@@ -279,6 +279,7 @@ main(int argc, char *argv[])
 		end_time= 0;
 		globals->kiversion = TRACE_VERSION;		/* initialize this to 1 for now until we actually read data */
 		init_trace_ids();
+		save_printk_value();
 		load_liki_module();
 
 		/* open debugfs directory needef or LiKI */
@@ -296,6 +297,7 @@ main(int argc, char *argv[])
 		read_liki_traces();		/* call instead of developers_call() */
 		liki_close_live_stream();
 		unload_liki_module();
+		restore_printk_value();
 
 		if (kgdboc_str) reset_kgdboc();
 

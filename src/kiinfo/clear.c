@@ -80,6 +80,17 @@ clear_syscall_info(void *arg1, void *arg2)
 }
 
 int
+clear_fd_stats(void *arg1, void *arg2)
+{
+        fd_info_t *fdinfop = arg1;
+
+	bzero(&fdinfop->stats, sizeof(fd_stats_t));
+
+	foreach_hash_entry((void **)fdinfop->syscallp, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&fdinfop->syscallp, SYSCALL_HASHSZ);
+}
+
+int
 clear_fd_info(void *arg1, void *arg2)
 {
         fd_info_t *fdinfop = arg1;
@@ -91,6 +102,18 @@ clear_fd_info(void *arg1, void *arg2)
 	free_hash_table((lle_t ***)&fdinfop->syscallp, SYSCALL_HASHSZ);
 }
 
+
+int clear_fdata_stats(void *arg1, void *arg2)
+{
+        fdata_info_t *fdatap = arg1;
+
+	if (fdatap->stats.syscall_cnt == 0) return 0;
+	bzero(&fdatap->stats, sizeof(fd_stats_t));
+
+	foreach_hash_entry((void **)fdatap->syscallp, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&fdatap->syscallp, SYSCALL_HASHSZ);
+}
+
 int
 clear_fdata_info(void *arg1, void *arg2)
 {
@@ -99,6 +122,16 @@ clear_fdata_info(void *arg1, void *arg2)
 	FREE(fdatap->fnameptr);
 	foreach_hash_entry((void **)fdatap->syscallp, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
 	free_hash_table((lle_t ***)&fdatap->syscallp, SYSCALL_HASHSZ);
+}
+
+int
+clear_sdata_stats(void *arg1, void *arg2)
+{
+        sdata_info_t *sdatap = arg1;
+
+	bzero(&sdatap->stats, sizeof(sd_stats_t));
+	foreach_hash_entry((void **)sdatap->syscallp, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&sdatap->syscallp, SYSCALL_HASHSZ);
 }
 
 int
@@ -165,6 +198,18 @@ clear_docker_info(void *arg1, void *arg2)
 
 	free_hash_table((lle_t ***)&dockerp->dkpid_hash, PID_HASHSZ);
 	FREE(dockerp->dkpid_hash);
+}
+
+int
+clear_devinfo_stats(void *arg1, void *arg2)
+{
+	dev_info_t *devinfop = (dev_info_t *)arg1;
+        if (devinfop == NULL) return 0;
+
+	bzero(&devinfop->iostats[0], sizeof(iostats_t) * 3);
+	free_hash_table((lle_t ***)&devinfop->mpath_hash, MPATH_HSIZE);
+
+	return 0;
 }
 
 int
@@ -314,6 +359,45 @@ clear_vtxt_preg(pid_info_t *pidp)
 	}
 	
 	pidp->vtxt_pregp = NULL;
+}
+
+int 
+clear_pid_stats(void *arg1, void *arg2)
+{
+	pid_info_t *pidp = (pid_info_t *)arg1;
+
+	pidp->num_tr_recs = 0;
+	pidp->missed_buffers = 0;
+	pidp->syscall_cnt = 0;
+	bzero(&pidp->iostats[0], sizeof(iostats_t) *3);
+	bzero(&pidp->miostats[0], sizeof(iostats_t) *3);
+	bzero(&pidp->fdstats, sizeof(fd_stats_t));
+	bzero(&pidp->netstats, sizeof(sd_stats_t));
+
+
+	clear_sched_info((void **)&pidp->schedp);
+	clear_hc_info((void **)&pidp->hcinfop);
+
+        foreach_hash_entry((void **)pidp->devhash, DEV_HSIZE, clear_devinfo_stats, NULL, 0, NULL);
+        foreach_hash_entry((void **)pidp->mdevhash, DEV_HSIZE, clear_devinfo_stats, NULL, 0, NULL);
+	foreach_hash_entry((void **)pidp->fdhash, FD_HSIZE, clear_fd_stats, NULL, 0, NULL);
+
+	foreach_hash_entry((void **)pidp->scallhash, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&pidp->scallhash, SYSCALL_HASHSZ);
+
+	foreach_hash_entry((void **)pidp->trc_hash, TRC_HASHSZ, clear_trc_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&pidp->trc_hash, TRC_HASHSZ);
+
+	free_hash_table((lle_t ***)&pidp->slp_hash, SLP_HSIZE);
+	free_hash_table((lle_t ***)&pidp->user_slp_hash, SLP_HSIZE);
+	free_hash_table((lle_t ***)&pidp->stktrc_hash, STKTRC_HSIZE);
+
+	foreach_hash_entry((void **)pidp->futex_hash, FUTEX_HSIZE, clear_pid_futex_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&pidp->futex_hash, FUTEX_HSIZE);
+
+	free_hash_table((lle_t ***)&pidp->pgcache_hash, PGCACHE_HASHSZ);
+
+	return 0;
 }
 
 int 
@@ -489,6 +573,90 @@ clear_all_stats()
 
 	free_hash_table((lle_t ***)&globals->ldom_hash, LDOM_HASHSZ);
 
+
+	FREE(globals->powerp);
+	globals->powerp = NULL;
+	FREE(globals->iotimes);
+	globals->iotimes = NULL;
+
+        clear_percpu_stats();
+        clear_HT_stats(NULL);
+	clear_global_stats();
+
+	bzero((char *)ldrq, MAXLDOMS * sizeof(runq_info_t) );
+        bzero(&globals->iostats, sizeof(struct iostats)*3);
+        bzero(&globals->netstats, sizeof(struct sd_stats));
+
+	if (oracle) {
+		for (i = 1; i < next_sid; i++) {
+			bzero (&sid_table[i].stats, sizeof(ora_stats_t));
+		}
+	}
+
+        return;
+}
+
+
+/* in the case that the TT_STARTUP event is found, we need to clear stats, but we 
+ * don't need to free any structures.   We need to be sure not to clear things from 
+ * the init functions, such as proces names, file nams, etc
+ *
+ * Some things are OK to free, as they can be easily recreated, like the global 
+ * slp_hash or stktrc_hash.   
+ */
+void
+clear_all_stats_startup()
+{
+	int i;
+#if MALLOC_DEBUG
+	fprintf (stderr, "clear_all_stats\n");
+#endif 
+
+        free_hash_table((lle_t ***)&globals->slp_hash, SLP_HSIZE);
+        free_hash_table((lle_t ***)&globals->stktrc_hash, STKTRC_HSIZE);
+        clear_hc_info((void **)&globals->hcinfop);
+
+        clear_irq_stats((void **)&globals->irqp);
+        clear_irq_stats((void **)&globals->softirqp);
+
+	clear_sched_info((void **)&globals->schedp);
+	foreach_hash_entry((void **)globals->syscall_hash, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->syscall_hash, SYSCALL_HASHSZ);
+	foreach_hash_entry((void **)globals->trc_hash, TRC_HASHSZ, clear_trc_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->trc_hash, TRC_HASHSZ);
+	foreach_hash_entry((void **)globals->futex_hash, GFUTEX_HSIZE, clear_gbl_futex_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->futex_hash, GFUTEX_HSIZE);
+	free_hash_table((lle_t ***)&globals->dskblk_hash, DSKBLK_HSIZE);
+
+	foreach_hash_entry((void **)globals->ctx_hash, CTX_HSIZE, clear_ctx_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->ctx_hash, CTX_HSIZE);
+
+        foreach_hash_entry((void **)globals->devhash, DEV_HSIZE, clear_global_devinfo, NULL, 0, NULL);
+        foreach_hash_entry((void **)globals->mdevhash, DEV_HSIZE, clear_global_devinfo, NULL, 0, NULL);
+
+        foreach_hash_entry((void **)globals->fdata_hash, FDATA_HASHSZ, clear_fdata_stats, NULL, 0, NULL);
+        foreach_hash_entry((void **)globals->sdata_hash, SDATA_HASHSZ, clear_sdata_stats, NULL, 0, NULL);
+        foreach_hash_entry((void **)globals->pid_hash, PID_HASHSZ, clear_pid_stats, NULL, 0, NULL);
+
+	foreach_hash_entry((void **)globals->ipip_hash, IPIP_HASHSZ, clear_ipip_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->ipip_hash, IPIP_HASHSZ);
+
+	foreach_hash_entry((void **)globals->rip_hash, IP_HASHSZ, clear_ip_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->rip_hash, IP_HASHSZ);
+
+	foreach_hash_entry((void **)globals->lip_hash, IP_HASHSZ, clear_ip_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->lip_hash, IP_HASHSZ);
+
+	foreach_hash_entry((void **)globals->rsock_hash, SOCK_HASHSZ, clear_ip_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->rsock_hash, SOCK_HASHSZ);
+
+	foreach_hash_entry((void **)globals->lsock_hash, SOCK_HASHSZ, clear_ip_info, NULL, 0, NULL);
+	free_hash_table((lle_t ***)&globals->lsock_hash, SOCK_HASHSZ);
+
+        foreach_hash_entry((void **)globals->fchash, FC_HSIZE, clear_fc_iostats, NULL, 0, NULL);
+        foreach_hash_entry((void **)globals->wwnhash, FC_HSIZE, clear_wwn_iostats, NULL, 0, NULL);
+
+	foreach_hash_entry((void **)globals->docker_hash, DOCKER_HASHSZ, clear_docker_info, NULL, 0, NULL);
 
 	FREE(globals->powerp);
 	globals->powerp = NULL;

@@ -51,6 +51,8 @@ extern int pc_queued_spin_lock_slowpath;
 extern int pc_SYSC_semtimedop;
 extern int pc_semtimedop;
 extern int pc_semctl;
+extern int pc_dd_bio_merge;
+extern int pc_dd_insert_requests;
 extern int pc_rwsem_down_write_failed;
 extern int pc_kstat_irqs_usr;
 extern int pc_pcc_cpufreq_target;
@@ -466,10 +468,18 @@ hc_print_pc2(void *arg1, void *arg2)
 			     (strstr(sym, "semtimedop") || strstr(sym, "semctl"))) {
 			RED_FONT;
 			(*print_pc_args->warnflagp) |= WARNF_SEMLOCK;
+		} else if ((((pcinfop->count*100.0) / hcinfop->total) > 2.0) &&
+			     (strstr(sym, "dd_bio_merge") || strstr(sym, "dd_insert_requests"))) {
+			RED_FONT;
+			(*print_pc_args->warnflagp) |= WARNF_MQDEADLINE;
 		} else if ((((pcinfop->count*100.0) / hcinfop->total) > 0.5) &&
 			     (strstr(sym, "sk_busy_loop") )) {
 			RED_FONT;
 			(*print_pc_args->warnflagp) |= WARNF_SK_BUSY;
+		} else if ((((pcinfop->count*100.0) / hcinfop->total) > 1.0) &&
+			     (strstr(sym, "kvm_vcpu_check_block") || strstr(sym, "kvm_vcpu_halt") || strstr(sym, "ktime_get"))) {
+			RED_FONT;
+			(*print_pc_args->warnflagp |= WARNF_KVM_HALT_POLL);
 		} else if ((((pcinfop->count*100.0) / hcinfop->total) > 2.0) &&
 			     (strstr(sym, "qosdUpdExprExecStatsRws") )) {
 			RED_FONT;
@@ -589,6 +599,7 @@ hc_print_stktrc(void *p1, void *p2)
         int i;
 	int hugetlb_fault_warn_cnt = 0;
 	int semlock_warn_cnt = 0;
+	int mqdeadline_warn_cnt = 0;
 	int kstat_irqs_warn_cnt = 0;
 	int queued_spin_lock_slowpath_cnt = 0;
 	int rwsem_down_write_failed_cnt = 0;
@@ -635,6 +646,8 @@ hc_print_stktrc(void *p1, void *p2)
 						hugetlb_fault_warn_cnt=2;
 					else if (queued_spin_lock_slowpath_cnt && ((key == pc_semctl) || (key == pc_SYSC_semtimedop) || (key == pc_semtimedop)))
 						semlock_warn_cnt=2;
+					else if (queued_spin_lock_slowpath_cnt && ((key == pc_dd_bio_merge) || (key == pc_dd_insert_requests)))
+						mqdeadline_warn_cnt=2;
 					else if (key == pc_kstat_irqs_usr) kstat_irqs_warn_cnt=2;
 					else if (key == pc_pcc_cpufreq_target) cpufreq_warn_cnt=2;
 					else if (key == pc_kvm_mmu_page_fault) kvm_pagefault_warn_cnt=2;
@@ -650,6 +663,10 @@ hc_print_stktrc(void *p1, void *p2)
 					RED_FONT;
 					*print_pc_args->warnflagp |= WARNF_SEMLOCK;
 					semlock_warn_cnt = 1;
+				} else if (mqdeadline_warn_cnt >= 2) {
+					RED_FONT;
+					*print_pc_args->warnflagp |= WARNF_MQDEADLINE;
+					mqdeadline_warn_cnt = 1;
 				} else if (kstat_irqs_warn_cnt >= 2) {
 					RED_FONT;
 					*print_pc_args->warnflagp |= WARNF_KSTAT_IRQS;

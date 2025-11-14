@@ -892,6 +892,11 @@ print_walltime_rec (void *a)
 {
 	walltime_t *rec_ptr = (walltime_t *)a;
 
+	if (start_time) {
+		/* need to clear old statistics prior to the walltime rec */
+		clear_all_stats_startup();
+	}
+
 	start_time = rec_ptr->hrtime;
 	begin_time = rec_ptr->walltime;
 	interval_start = interval_end = FILTER_START_TIME;  /* for VIS */
@@ -941,6 +946,11 @@ trace_startup_func (void *a, void *v)
 	startup_t *rec_ptr = (startup_t *)trcinfop->cur_rec;
 
 	if (debug) printf ("trace_startup_func()\n");
+	if (start_time) {
+		/* need to clear old statistics prior to the walltime rec */
+		clear_all_stats_startup();
+	}
+
 	print_startup_rec(rec_ptr);
 
 	return 0;

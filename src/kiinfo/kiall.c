@@ -93,6 +93,8 @@ kiall_init_func(void *v)
 {
         int i, ret;
 	char piddir[8];
+	char fname[30];
+	int itimes_fd;
 
 	if (debug) printf ("kiall_init_func()\n");
         process_func = kiall_process_func;
@@ -105,6 +107,16 @@ kiall_init_func(void *v)
 
 	/* kiall is not allowed on live systems!! */
 	if (is_alive)  return;
+
+       if (timestamp) {
+                /* pre-create the itimes file and close it.  It will be re-opened later */
+                sprintf(fname, "itimes.%s", timestamp);
+                if ((itimes_fd = open(fname, O_WRONLY | O_CREAT, 0744)) < 0) {
+                       if (debug) fprintf (stderr, "Unable to open %s in kiall_init_func() (errno %d)\n", fname, errno);
+                } else {
+                        close(itimes_fd);
+                }
+        }
 
         /* We will disregard the trace records until the Marker is found */
         for (i = 0; i < KI_MAXTRACECALLS; i++) {

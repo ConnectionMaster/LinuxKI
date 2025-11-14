@@ -1,0 +1,306 @@
+<html>
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=utf-8">
+<meta name=Generator content="Microsoft Word 15 (filtered)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Courier;
+	panose-1:2 7 4 9 2 2 5 2 4 4;}
+@font-face
+	{font-family:Wingdings;
+	panose-1:5 0 0 0 0 0 0 0 0 0;}
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:0in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+a:link, span.MsoHyperlink
+	{color:#0563C1;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:#954F72;
+	text-decoration:underline;}
+code
+	{font-family:"Courier New";}
+p.MsoListParagraph, li.MsoListParagraph, div.MsoListParagraph
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpFirst, li.MsoListParagraphCxSpFirst, div.MsoListParagraphCxSpFirst
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:0in;
+	margin-left:.5in;
+	margin-bottom:.0001pt;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpMiddle, li.MsoListParagraphCxSpMiddle, div.MsoListParagraphCxSpMiddle
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:0in;
+	margin-left:.5in;
+	margin-bottom:.0001pt;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpLast, li.MsoListParagraphCxSpLast, div.MsoListParagraphCxSpLast
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+.MsoChpDefault
+	{font-family:"Calibri",sans-serif;}
+.MsoPapDefault
+	{margin-bottom:8.0pt;
+	line-height:107%;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:.5in .5in .5in .5in;}
+div.WordSection1
+	{page:WordSection1;}
+ /* List Definitions */
+ ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+
+</head>
+
+<body lang=EN-US link="#0563C1" vlink="#954F72">
+
+<div class=WordSection1>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;vertical-align:
+top'><b><i><span style='font-size:12.0pt;font-family:"Arial",sans-serif;
+color:black'>​LinuxKI Warning</span></i></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+11.25pt;vertical-align:top'><b><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black'>&nbsp;</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+11.25pt;vertical-align:top'><strong><span style='font-family:"Arial",sans-serif;
+color:black;background:white'>Heavy spinlock contention using mq-deadline IO
+scheduler with high IOPS</span></strong><span style='font-size:10.0pt;
+font-family:"Arial",sans-serif;color:black'> </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+11.25pt;vertical-align:top'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black'>08/14/2025        </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+11.25pt;vertical-align:top'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><b><span style='font-family:"Arial",sans-serif;
+color:black'>Problem Description</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-family:"Arial",sans-serif;
+color:black'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black;background:white'>When performing IO tests&nbsp;using fio with 12
+NVMe drives connected to an SR932i-p controller, the DL325 Gen11&nbsp;server
+could only achieve 275K reads per second&nbsp;using 4K random read tests, and
+275K writes per second using 4K random write tests.&nbsp; &nbsp; The
+expectation &gt;1M IOPS for reads and &gt;700K IOPS for writes.</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span lang=EN-GB style='font-size:10.0pt;font-family:
+"Arial",sans-serif;color:black;background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><b><span lang=EN-GB style='font-family:"Arial",sans-serif;
+color:black;background:white'>Investigation</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span lang=EN-GB style='font-size:10.0pt;font-family:
+"Arial",sans-serif;color:black;background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black;background:white'>Initial look with top/htop show the CPU
+utilization was very high, especially the SYS CPU usage.&nbsp; &nbsp;Suspecting
+spinlock contention, a quick&nbsp;<b><i>perf top</i></b>&nbsp;command confirmed
+that the top function was native_queued_spin_lock_slowpath().&nbsp; &nbsp; To
+troubleshoot further, a perf call graph was collected using the following
+commands:</span><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black'><br>
+<br>
+</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-size:10.0pt;font-family:Courier;
+color:black'>$ perf record -o perf.callgraph.data -a -g -o sleep 5</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-size:10.0pt;font-family:Courier;
+background:white'>$ perf report -i perf.callgraph.data -n &gt; perf.out</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-family:"Arial",sans-serif;
+color:black'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:7.5pt;line-height:normal;background:
+white'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black'>The
+cross-section of the perf.out file is listed below that shows the spinlock
+contention comes from the dd_bio_merge() and dd_insert_requests() functions.</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'> 
+--57.46%--__submit_bio</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'> 
+          |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>  
+         |--57.38%--blk_mq_submit_bio</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |--28.19%--blk_mq_attempt_bio_merge</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |          |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |           --28.17%--blk_mq_sched_bio_merge</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                     |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                      --28.01%--dd_bio_merge</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                |--27.30%--_raw_spin_lock</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                |          |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                |           --27.26%--native_queued_spin_lock_slowpath</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                 --0.66%--blk_mq_sched_try_merge</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                           |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                                            --0.65%--elv_merge</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |--27.30%--blk_mq_insert_request</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |          |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |           --27.16%--dd_insert_requests</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>   
+        |                     |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>     
+      |                      --26.71%--_raw_spin_lock</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>    
+       |                                |          </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;background:
+#F2F2F2'><span style='font-size:10.0pt;line-height:107%;font-family:"Courier New"'>    
+       |                                
+--26.68%--native_queued_spin_lock_slowpath</span></p>
+
+<p class=MsoNormal><span style='font-size:10.0pt;line-height:107%;font-family:
+"Arial",sans-serif;color:black;background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal><span style='font-size:10.0pt;line-height:107%;font-family:
+"Arial",sans-serif;color:black;background:white'>The dd_bio_merge() and
+dd_insert_requests() function are part of the mq-deadline.c source code.&nbsp;
+&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><b><span lang=EN-GB style='font-family:"Arial",sans-serif;
+color:black;background:white'>Resolution</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span lang=EN-GB style='font-size:10.0pt;font-family:
+"Arial",sans-serif;color:black;background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;margin-bottom:.0001pt;line-height:
+normal;background:white'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black;background:white'>To resolve the problem, the block device IO
+scheduler (/sys/block/&lt;dev&gt;/queue/schedule) was changed from <b>mq-deadline
+</b>to <b>none</b>.&nbsp; &nbsp;After changing the schedule, the IO performance
+improved to &gt;1M IOPS for reads and 750K IOPS for writes.&nbsp; &nbsp;</span><span
+style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black'><br>
+<br>
+<span style='background:white'>Note that it is possible that using <b>mq-deadline</b>
+and setting /sys/block/&lt;dev&gt;/queue/<em><b><span style='font-family:"Arial",sans-serif'>nomerges</span></b></em><strong><span
+style='font-family:"Arial",sans-serif'>&nbsp;</span></strong>to 1 may work, but
+was not tested at the time as using the <b>noop</b> schedule was
+successful.&nbsp;&nbsp;</span></span></p>
+
+</div>
+
+</body>
+
+</html>

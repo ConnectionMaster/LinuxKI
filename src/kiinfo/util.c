@@ -2614,3 +2614,41 @@ irqflags(uint32 f)
 	return(str);
 }
 
+static char printk_value[30];
+
+int
+save_printk_value()
+{
+	int printk_fd;
+
+	if ((printk_fd = open("/proc/sys/kernel/printk", O_RDWR)) < 0 ) {
+		FATAL(errno, "Unable to open file", "/proc/sys/kernel/printk", -1);
+	}
+
+	get_fd_str(printk_fd, printk_value, 0);
+	/* fprintf (stderr, "/proc/sys/kernel/printk = %s\n", printk_value); */
+	put_fd_str(printk_fd, "4 4 1 7", 0);
+	close(printk_fd);
+
+	return 0;
+}
+
+
+int
+restore_printk_value()
+{
+	int printk_fd;
+
+	if (strlen(printk_value) == 0) return 0;
+
+	if ((printk_fd = open("/proc/sys/kernel/printk", O_RDWR)) < 0 ) {
+		fprintf(stderr, "Unable to open file /proc/sys/kernel/printk to restore values (Errno: %d)", errno); 
+		return 0;
+	}
+
+	/* fprintf (stderr, "resetting /proc/sys/kernel/printk = %s\n", printk_value); */
+	put_fd_str(printk_fd, printk_value, 0);
+	close (printk_fd);
+
+	return 0;
+}

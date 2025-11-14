@@ -6880,7 +6880,9 @@ warnmsg_t warnmsg[MAXNOTEWARN] = {
 	{ "Warning: High System CPU utilization during memory allocations, deallocations, and page faults", _HTTP_LARGE_NUMA_NODE},
         { "Warning: System is using clocksource other than tsc", _HTTP_CLOCKSOURCE},
         { "Warning: Spinlock contention caused by systemd --user and high number of user logins/logoffs", _HTTP_SYSTEMD_USER},
-	{ "Warning: Suspect SOS_BLOCKALLOCPARTIALLIST spinlock contention", _HTTP_MEMBLOCK_ALLOC}
+	{ "Warning: Suspect SOS_BLOCKALLOCPARTIALLIST spinlock contention", _HTTP_MEMBLOCK_ALLOC},
+	{ "Warning: Heavy spinlock contention using mq-deadine IO schedule with high IOPS", _HTTP_MQDEADLINE},
+	{ "Warning: KVM Halt Polling may increase CPU usage on KVM host", _HTTP_KVM_HALT_POLL}
 };
 
 

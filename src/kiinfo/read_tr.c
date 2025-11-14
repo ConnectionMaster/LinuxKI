@@ -937,6 +937,7 @@ fatal(const char *func, const int lineno, const char *file, int err, char *errms
 		unload_liki_module();
 	}
 
+	restore_printk_value();
         _exit(err);
 }
 

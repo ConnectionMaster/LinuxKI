@@ -1,0 +1,489 @@
+<html>
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=utf-8">
+<meta name=Generator content="Microsoft Word 15 (filtered)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Wingdings;
+	panose-1:5 0 0 0 0 0 0 0 0 0;}
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:0in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+a:link, span.MsoHyperlink
+	{color:#0563C1;
+	text-decoration:underline;}
+p.MsoListParagraph, li.MsoListParagraph, div.MsoListParagraph
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpFirst, li.MsoListParagraphCxSpFirst, div.MsoListParagraphCxSpFirst
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:0in;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpMiddle, li.MsoListParagraphCxSpMiddle, div.MsoListParagraphCxSpMiddle
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:0in;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+p.MsoListParagraphCxSpLast, li.MsoListParagraphCxSpLast, div.MsoListParagraphCxSpLast
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:.5in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+.MsoChpDefault
+	{font-family:"Calibri",sans-serif;}
+.MsoPapDefault
+	{margin-bottom:8.0pt;
+	line-height:107%;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:.5in .5in .5in .5in;}
+div.WordSection1
+	{page:WordSection1;}
+ /* List Definitions */
+ ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+
+</head>
+
+<body lang=EN-US link="#0563C1" vlink="#954F72" style='word-wrap:break-word'>
+
+<div class=WordSection1>
+
+<p class=MsoNormal style='margin-bottom:0in;vertical-align:top'><b><i><span
+style='font-size:12.0pt;font-family:"Arial",sans-serif;color:black'>​LinuxKI
+Warning</span></i></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:11.25pt;vertical-align:
+top'><b><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black'>&nbsp;</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:11.25pt;vertical-align:
+top'><strong><span style='font-family:"Arial",sans-serif;color:black;
+background:white'>Benefits and Costs of KVM Halt Polling </span></strong></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:11.25pt;vertical-align:
+top'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black'>11/03/2025        </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:11.25pt;vertical-align:
+top'><span style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><b><span
+style='font-family:"Arial",sans-serif;color:black'>Background</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+style='font-family:"Arial",sans-serif;color:black'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;background:
+white'>When a vCPU begins to execute the idle() code, KVM must decide how to
+handle the idle vCPU.   It can do one of the following:</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;background:
+white'>&nbsp;</span></p>
+
+<p class=MsoListParagraphCxSpFirst style='margin-bottom:0in;text-indent:-.25in;
+line-height:normal;background:white'><span style='font-size:10.0pt;font-family:
+Symbol;color:black'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black;background:white'>Halt the vCPU thread to allow vCPUs from other
+VMs to run</span></p>
+
+<p class=MsoListParagraphCxSpLast style='margin-bottom:0in;text-indent:-.25in;
+line-height:normal;background:white'><span style='font-size:10.0pt;font-family:
+Symbol;color:black'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span style='font-size:10.0pt;font-family:"Arial",sans-serif;
+color:black;background:white'>Have the vCPU thread poll for a period of time
+for additional work before being halted.   This feature is known as KVM Halt
+Polling</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;background:
+white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;background:
+white'>This article will discuss the benefits and costs of KVM Halt Polling and
+how to adjust the amount of time the vCPU thread will poll before going to
+sleep.</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><b><span
+lang=EN-GB style='font-family:"Arial",sans-serif;color:black;background:white'>Benefits
+of KVM Halt Polling</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><b><span
+lang=EN-GB style='font-family:"Arial",sans-serif;color:black;background:white'>&nbsp;</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>When a vCPU is idle, KVM allows the vCPU thread to poll for
+200 usecs (default) before halting the vCPU thread.  KVM Halt polling can avoid
+the costly overhead of switching the vCPU thread off the CPU and then having vCPU
+thread schedule to run again shortly afterwards.   If another thread or
+interrupt needs to run on the vCPU, then the vCPU thread will simply exit the
+polling code and execute code on behalf of the vCPU, thus avoiding the costly
+context switch and subsequent wakeup of the VCPU thread.   </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>Doing KVM Halt Polling, especially if there is plenty of CPU
+available on the KVM host, especially if the KVM host is not oversubscribed,
+will generally improve performance of the VMs, as the KVM Halt Polling executes
+while the physical CPU would have otherwise been idle would benefit the VMs.   </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'> </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><b><span
+lang=EN-GB style='font-family:"Arial",sans-serif;color:black;background:white'>Costs
+of KVM Halt Polling</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>However, KVM halt polling has a cost too.   Since the vCPU
+thread is polling, it needs CPU cycles to poll for more work.   This means the
+physical core is busy while the vCPU is essentially idle.   One of the
+side-effects of KVM Halt Polling is having a much higher CPU usage on the KVM
+host than observed on all of the KVM guests.   If the KVM host is
+oversubscribed, an idle vCPU thread that is polling is taking CPU cycles aware
+from another vCPU thread that could possibly run and cause additional CPU RunQ
+latencies on the KVM host.    </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>Doing KVM Halt Polling where there is contention for CPU
+resources due to the oversubscription of vCPUs to physical cores could
+negatively impact performance as cycles that could be used to execute another
+vCPU are spent in the KVM Halt Polling code.</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><b><span
+lang=EN-GB style='font-family:"Arial",sans-serif;color:black;background:white'>Using
+LinuxKI to troubleshoot the impact of KVM Halt Polling</span></b></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>A recent customer was running a Hadoop benchmark in a KVM VM
+with 128 vCPUs defined.    The KVM host had 64 physical cores with
+Hyperthreading enabled, resulting in 128 logical cores.    When looking at the
+KVM guest, the CPU was only 30% busy:</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>CPU  usr:   19.1%  sys:    9.2%   irq:    2.2%   idle:  
+69.4%  steal:    0.1%</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>Meanwhile, the KVM host CPU utilization was 67% busy:</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal;background:white'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>CPU  usr:    0.3%  sys:   63.2%   irq:    3.8%   idle:  
+32.7%  steal:    0.0%</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>A KVM host will have other threads involved in the workload,
+such as Virtual I/O worker threads and some overhead.    But the CPU Profile
+from LinuxKI shows a lot of CPU time in the kvm_vcpu_halt code:</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:10.0pt;font-family:"Arial",sans-serif;color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>---------- Global Profiling Activity ----------</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>  Count   USER%    SYS%   INTR%   IDLE%</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'> 198971   0.02%  55.86%   0.00%  44.12%</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>------------- Top Kernel Functions -------------</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>   Count     Pct  State  Function</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>   73472  36.93%  SYS    handle_external_interrupt_irqoff</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    </span><span lang=EN-GB style='font-size:9.0pt;
+font-family:"Courier New";color:#EE0000;background:white'>4933   2.48%  SYS   
+kvm_vcpu_check_block</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    4065   2.04%  SYS    vcpu_run</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    3329   1.67%  SYS    rwsem_optimistic_spin</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    </span><span lang=EN-GB style='font-size:9.0pt;
+font-family:"Courier New";color:#EE0000;background:white'>3131   1.57%  SYS   
+kvm_vcpu_halt</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    </span><span lang=EN-GB style='font-size:9.0pt;
+font-family:"Courier New";color:#EE0000;background:white'>2860   1.44%  SYS   
+ktime_get</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    2656   1.33%  SYS    vmx_sync_pir_to_irr</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    2433   1.22%  SYS    on_each_cpu_cond_mask</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1893   0.95%  SYS    vmx_vcpu_load_vmcs</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1594   0.80%  SYS    kvm_apic_has_interrupt</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1161   0.58%  SYS    __schedule</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1023   0.51%  SYS    handle_tx_copy</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>     919   0.46%  SYS    kvm_cpu_has_interrupt</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>     881   0.44%  SYS    eventfd_signal_mask</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>     649   0.33%  SYS    apic_has_interrupt_for_ppr</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>&nbsp;</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>----------- Top Kernel Stack Traces ------------</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>   Count     Pct  Stack trace</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>   73472  36.93  handle_external_interrupt_irqoff 
+vcpu_enter_guest.constprop.0  vcpu_run  kvm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl
+ _x64_sys_ioctl  do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    4911   2.47  kvm_vcpu_check_block  <span
+style='background:yellow'>kvm_vcpu_halt</span>  vcpu_run 
+kvm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl  __x64_sys_ioctl do_syscall_64 
+entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    4065   2.04  vcpu_run  kvm_arch_vcpu_ioctl_run 
+kvm_vcpu_ioctl  __x64_sys_ioctl  do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    3323   1.67  rwsem_optimistic_spin  rwsem_down_write_slowpath 
+down_write  xfs_ilock  xfs_file_buffered_write  do_iter_readv_writev 
+do_iter_write  vfs_writev  __x64_sys_pwritev  do_syscall_64 
+entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    3131   1.57  <span style='background:yellow'>kvm_vcpu_halt</span> 
+vcpu_run  kvm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl  __x64_sys_ioctl 
+do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    2860   1.44  ktime_get  <span style='background:yellow'>kvm_vcpu_halt</span> 
+vcpu_run  kvm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl  __x64_sys_ioctl 
+do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    2620   1.32  vmx_sync_pir_to_irr 
+apic_has_interrupt_for_ppr  kvm_cpu_has_interrupt 
+kvm_arch_vcpu_runnable.part.0  kvm_vcpu_check_block  <span style='background:
+yellow'>kvm_vcpu_halt</span>  vcpu_run vm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl 
+__x64_sys_ioctl do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1883   0.95  on_each_cpu_cond_mask  flush_tlb_mm_range 
+tlb_finish_mmu  zap_page_range_single  madvise_vma_behavior  do_madvise.part.0 
+__x64_sys_madvise  do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='font-size:9.0pt;font-family:"Courier New";color:black;
+background:white'>    1880   0.94  vmx_vcpu_load_vmcs  vmx_vcpu_load  kvm_arch_vcpu_load 
+finish_task_switch.isra.0  __schedule  schedule   kvm_vcpu_block  <span
+style='background:yellow'>kvm_vcpu_halt</span>  vcpu_run 
+kvm_arch_vcpu_ioctl_run  kvm_vcpu_ioctl  __x64_sys_ioctl  do_syscall_64  entry_SYSCALL_64_after_hwframe</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in'><span lang=EN-GB style='background:
+white'>&nbsp;</span></p>
+
+<p class=MsoNormal><span lang=EN-GB style='color:black;background:white'>So the
+KVM host used more CPU than the KVM guest because the vCPUs are in the
+kvm_vcpu_halt code polling for more work.</span></p>
+
+<p class=MsoNormal><b><span lang=EN-GB style='font-family:"Arial",sans-serif;
+color:black;background:white'>Tuning KVM Halt Polling</span></b></p>
+
+<p class=MsoNormal><span lang=EN-GB style='color:black;background:white'>Linux
+provides the following KVM Halt Polling tunable parameters:</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:90%'><span
+style='font-size:9.0pt;line-height:90%;font-family:"Courier New";color:black'>$
+cat /sys/module/kvm/parameters/halt_poll_ns</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:90%'><span
+style='font-size:9.0pt;line-height:90%;font-family:"Courier New";color:black'>$
+cat /sys/module/kvm/parameters/halt_poll_ns_grow</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:90%'><span
+style='font-size:9.0pt;line-height:90%;font-family:"Courier New";color:black'>$
+cat /sys/module/kvm/parameters/halt_poll_ns_grow_start</span></p>
+
+<p class=MsoNormal><span style='font-size:9.0pt;line-height:107%;font-family:
+"Courier New";color:black'>$ cat
+/sys/module/kvm/parameters/halt_poll_ns_shrink&nbsp;</span></p>
+
+<p class=MsoNormal><span lang=EN-GB style='color:black;background:white'>The
+following example reduces the halt_poll_ns from the default value of 200000
+nanoseconds to 20000 nanoseconds (20 usecs):</span></p>
+
+<p class=MsoNormal><span lang=EN-GB style='font-size:9.0pt;line-height:107%;
+font-family:"Courier New";color:black;background:white'>$ echo 20000 &gt;
+/sys/module/kvm/parameters/halt_poll_ns</span></p>
+
+<p class=MsoNormal style='margin-bottom:0in;line-height:normal'><span
+lang=EN-GB style='color:black;background:white'>Note that some environments
+will perform better with a lower halt_poll_ns value, and some environments will
+perform better with a higher halt_poll_ns value.    It depends on the desired behaviour.  
+If you want to reduce the KVM host CPU usage to run more KVM guest VMs, then
+you may want to lower the halt_poll_ns value, which would result in more
+context switching by the vCPU threads.    However, if the KVM host has
+sufficient idle CPU cycles already, the VMs may benefit from a higher
+halt_poll_ns value to reduce the vCPU thread context switches.  </span></p>
+
+<p class=MsoNormal style='margin-bottom:0in'><span lang=EN-GB style='color:
+black;background:white'> </span></p>
+
+<p class=MsoNormal><span lang=EN-GB style='color:black;background:white'>For
+more information on KVM Halt Polling, please see:   </span><a
+href="https://docs.kernel.org/virt/kvm/halt-polling.html"><span lang=EN-GB
+style='background:white'>https://docs.kernel.org/virt/kvm/halt-polling.html</span></a><span
+style='color:black;background:white'> </span></p>
+
+</div>
+
+</body>
+
+</html>

@@ -214,6 +214,8 @@ likidump()
 		return 1;
 	}
 
+	save_printk_value();
+
 	/* Initialize tracing
 	 */
 	if (error = liki_init(debug_dir)) {
@@ -394,6 +396,8 @@ likidump()
 		sprintf(fname, "%s.%03d.%s", DEFAULT_DATAFILE_NAME, trace_streams[cpucnt].cpu, timestamp);
 
 	}
+
+	restore_printk_value();
 
 	printf("%s: Tracing complete\n", tool_name);
 

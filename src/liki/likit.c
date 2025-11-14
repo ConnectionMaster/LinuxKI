@@ -96,6 +96,8 @@ Confused about platform!
 #define ACCESS_OK(flag, addr, size) access_ok(addr, size)
 #endif
 
+#define INVALID_ADDR(from)  ((unsigned long)from & 0xff00000000000000)
+
 #ifndef NR_syscalls
 #define NR_syscalls __NR_syscalls
 #endif
@@ -302,8 +304,6 @@ STATIC char		ignored_syscalls32[NR_syscalls];
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,2,0)
 static struct socket *(*sockfd_lookup_light_fp)(int, int *, int *);
 #endif
-
-static int (*vfs_fstat_fp)(int, struct kstat *);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 struct stack_trace {
@@ -689,6 +689,15 @@ liki_copy_from_user(void *to, const void __user *from, unsigned long n)
 #else
         if (!ACCESS_OK(VERIFY_READ, from, n))
                 return n;
+
+	/* for some reason, ACCESS_OK() is not catching bad addresses
+	 * resulting in alarming fixup_exception traps to the console.
+	 * So we will do a double check.  Any address with the 1st byte
+	 * being non-zero (0xff) will be considered invalid 
+	 */
+	if (INVALID_ADDR(from)) {
+		return n;
+	}
 
         pagefault_disable();
         ret = __copy_from_user_inatomic(to, from, n);
@@ -1977,6 +1986,9 @@ startup_msr(void)
 
 		case 0x8f:      /* SapphireRapids */
 		case 0xcf:      /* EmeraldRapids */
+
+		case 0xad:	/* GraniteRapids X */
+		case 0xae:	/* GraniteRapids D */
 
 			break;
 		case 87:	/* Knights Landing - needs testing!!! */
@@ -4532,8 +4544,6 @@ syscall_exit_trace(RXUNUSED struct pt_regs *regs, long ret)
 
 		{
 
- 		struct kstat		stat_struct;
- 		fileaddr_t		*fileaddr;
 		int			fd;
 		int			err;
 		int			fput_needed;
@@ -4590,24 +4600,10 @@ syscall_exit_trace(RXUNUSED struct pt_regs *regs, long ret)
 			}
 
 		} else {
-			/* if target if NFS file, we have issues which can cause softlockups, so skip this!! */
+			/* if target if NFS file, we have issues which can cause softlockups,
+			   so we cannot call vfs_fstat(), so just exit
+			*/
 			goto scexit_skip_vldata;
-
-
- 			if (vfs_fstat_fp(fd, &stat_struct) != 0) 
- 				goto scexit_skip_vldata;
-
- 			fileaddr = (fileaddr_t *)&local;
- 			fileaddr->ss_family = AF_REGFILE;
- 			fileaddr->i_ino = stat_struct.ino;
-			if (stat_struct.rdev) {
-				fileaddr->dev = stat_struct.rdev;
-			} else {
- 				fileaddr->dev = stat_struct.dev;
-			}
-
- 			loclen = sizeof(fileaddr_t);
- 			remlen = 0;
 		}
 
 		sz = TRACE_ROUNDUP((sizeof(syscall_exit_t) + loclen + remlen + sizeof(short)));
@@ -5107,71 +5103,6 @@ STATIC struct jprobe jphc = {
 	},
 };
 
-#endif
-
-long unsigned int kln_addr = 0;
-unsigned long (*kallsyms_lookup_name_fp)(const char *name) = NULL;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0) 
-/* This code is derived from https://github.com/zizzu0/LinuxKernelModules/blob/main/FindKallsymsLookupName.c
-* kallsyms_lookup_name undefined and finding not exported functions in the linux kernel
-*
-* zizzu 2020
-*
-* On kernels 5.7+ kallsyms_lookup_name is not exported anymore, so it is not usable in kernel modules.
-* The address of this function is visible via /proc/kallsyms
-* but since the address is randomized on reboot, hardcoding a value is not possible.
-* A kprobe replaces the first instruction of a kernel function
-* and saves cpu registers into a struct pt_regs *regs and then a handler
-* function is executed with that struct as parameter.
-* The saved value of the instruction pointer in regs->ip, is the address of probed function + 1.
-* A kprobe on kallsyms_lookup_name can read the address in the handler function.
-* Internally register_kprobe calls kallsyms_lookup_name, which is visible for this code, so,
-* planting a second kprobe, allow us to get the address of kallsyms_lookup_name without waiting
-* and then we can call this address via a function pointer, to use kallsyms_lookup_name in our module.
-*
-* example for _x86_64.
-*/
-
-#define KPROBE_PRE_HANDLER(fname) static int __kprobes fname(struct kprobe *p, struct pt_regs *regs)
-
-static struct kprobe kp0, kp1;
-
-KPROBE_PRE_HANDLER(handler_pre0)
-{
-#if defined CONFIG_ARM64
-  kln_addr = (regs->pc);
-#else 
-  kln_addr = (--regs->ip);
-#endif
-
-  return 0;
-}
-
-KPROBE_PRE_HANDLER(handler_pre1)
-{
-  return 0;
-}
-
-static int do_register_kprobe(struct kprobe *kp, char *symbol_name, void *handler)
-{
-  int ret;
-
-  kp->symbol_name = symbol_name;
-  kp->pre_handler = handler;
-
-  ret = register_kprobe(kp);
-  if (ret < 0) {
-    pr_err("register_probe() for symbol %s failed, returned %d\n", symbol_name, ret);
-    return ret;
-  }
-
-#ifdef __LIKI_DEBUG
-  pr_info("Planted kprobe for symbol %s at %p\n", symbol_name, kp->addr);
-#endif
-
-  return ret;
-}
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0) || (defined(CONFIG_PPC64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)))
@@ -7172,9 +7103,6 @@ init_tp_entry(struct tracepoint *tp, void *priv)
 STATIC int
 liki_initialize(void)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
-	int ret = 0;
-#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	int	i;
@@ -7206,45 +7134,16 @@ liki_initialize(void)
 	 * un-exported functions and call them anyway.
 	 */
 
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
-	ret = do_register_kprobe(&kp0, "kallsyms_lookup_name", handler_pre0);
-	if (ret < 0) return ret;
-
-	ret = do_register_kprobe(&kp1, "kallsyms_lookup_name", handler_pre1);
-	if (ret < 0) { 
-		unregister_kprobe(&kp0);
-		return ret;
-	}
-
-	unregister_kprobe(&kp0);
-	unregister_kprobe(&kp1);
-#ifdef __LIKI_DEBUG
-	printk(KERN_INFO "kallsyms_lookup_name address = 0x%lx\n", kln_addr);
-#endif
-
-	kallsyms_lookup_name_fp = (unsigned long (*)(const char *name)) kln_addr;
-
-#ifdef __LIKI_DEBUG
-  	printk(KERN_INFO "kallsyms_lookup_name address = 0x%lx\n", kallsyms_lookup_name_fp("kallsyms_lookup_name"));
-#endif
-
-#else
-	kallsyms_lookup_name_fp = (unsigned long (*)(const char *name))kallsyms_lookup_name;
-#endif
-
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	/* Nothing to do here as we will use sockfd_lookup() */
 #elif defined CONFIG_PPC64
-	if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name_fp("sockfd_lookup")) == 0) {
+	if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name("sockfd_lookup")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find sockfd_lookup()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
 #else
-
-        if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name_fp("sockfd_lookup_light")) == 0) {
+        if ((sockfd_lookup_light_fp = (void *)kallsyms_lookup_name("sockfd_lookup_light")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find sockfd_lookup_light()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
@@ -7254,13 +7153,13 @@ liki_initialize(void)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	/* Nothing to do here as we will use stack_trace_save() */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0) && (defined RHEL82 || defined RHEL86)
-	if ((stack_trace_save_regs_fp = (void *)kallsyms_lookup_name_fp("stack_trace_save_regs")) == 0) {
+	if ((stack_trace_save_regs_fp = (void *)kallsyms_lookup_name("stack_trace_save_regs")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find stack_trace_save_regs()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
-        if ((save_stack_trace_regs_fp = (void *)kallsyms_lookup_name_fp("save_stack_trace_regs")) == 0) {
+        if ((save_stack_trace_regs_fp = (void *)kallsyms_lookup_name("save_stack_trace_regs")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find save_stack_trace_regs()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
@@ -7268,21 +7167,11 @@ liki_initialize(void)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
-	if ((copy_from_user_nmi_fp = (void *)kallsyms_lookup_name_fp("copy_from_user_nmi")) == 0) {
+	if ((copy_from_user_nmi_fp = (void *)kallsyms_lookup_name("copy_from_user_nmi")) == 0) {
 		printk(KERN_WARNING "LiKI: cannot find copy_from_user_nmi()\n");
 		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
 		return(-EINVAL);
 	}
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0)
-	if ((vfs_fstat_fp = (void *)kallsyms_lookup_name_fp("vfs_fstat")) == 0) {
-		printk(KERN_WARNING "LiKI: cannot find copy_from_user_nmi()\n");
-		printk(KERN_WARNING "LiKI: tracing initialization failed\n");
-		return(-EINVAL);
-	}
-#else
-	vfs_fstat_fp = (int (*)(int, struct kstat *))vfs_fstat;
 #endif
 
 	if (startup() != 0) {

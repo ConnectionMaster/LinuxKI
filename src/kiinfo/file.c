@@ -42,6 +42,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "Image.h"
 #include "winki_util.h"
 
+extern int clear_fdata_stats(void *, void *);
+
 int file_ftrace_print_func(void *, void *);
 /*
  ** The initialisation function
@@ -329,18 +331,6 @@ int file_print_fdata(void *arg1, void *arg2)
         }
 
         return 0;
-}
-
-int 
-clear_fdata_stats(void *arg1, void *arg2)
-{
-        fdata_info_t *fdatap = (fdata_info_t *)arg1;
-
-        if (fdatap->stats.syscall_cnt == 0) return 0;
-	bzero(&fdatap->stats, sizeof(fd_stats_t));
-
-        foreach_hash_entry(fdatap->syscallp, SYSCALL_HASHSZ, clear_syscall_info, NULL, 0, NULL);
-	free_hash_table((lle_t ***)&fdatap->syscallp, SYSCALL_HASHSZ);
 }
 
 int 

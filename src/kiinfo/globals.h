@@ -989,7 +989,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* macros for managing the Notes and Warnings messages and links.  */
 /* update with warnmsg[] definitions in globals.c */
-#define MAXWARNMSG		38
+#define MAXWARNMSG		40	
 #define MAXNOTEMSG		0
 #define MAXNOTEWARN		MAXWARNMSG+MAXNOTEMSG
 #define WARN_CPU_BOTTLENECK		0		
@@ -1030,6 +1030,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #define WARN_CLOCKSOURCE		35
 #define WARN_SYSTEMD_USER		36
 #define WARN_MEMBLOCK_ALLOC		37
+#define WARN_MQDEADLINE			38
+#define WARN_KVM_HALT_POLL		39
 #define NOTE_NUM1		MAXWARNMSG+0
 
 /* warn flags passed to "foreach" functions for detection */
@@ -1068,6 +1070,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #define WARNF_KVM_PAGEFAULT		0x20ull
 #define WARNF_ORACLE_COLSTATS		0x40ull
 #define WARNF_LARGE_NUMA_NODE		0x80ull
+#define WARNF_MQDEADLINE		0x100ull
+#define WARNF_KVM_HALT_POLL		0x200ull
 
 /* warn flags specific to Windows */
 #define WARNF_TCPTIMEOUTS		0x01ull 

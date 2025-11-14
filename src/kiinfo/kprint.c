@@ -1050,6 +1050,11 @@ kp_hc_kernfuncs()			/* Section 1.4.3 */
 		kp_warning(globals->warnings, warn_indx, _LNK_1_4_3); NL;
 	}
 
+	if ((*print_pc_args.warnflagp) & WARNF_MQDEADLINE) {
+		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_MQDEADLINE, _LNK_1_4_3);
+		kp_warning(globals->warnings, warn_indx, _LNK_1_4_3); NL;
+	}
+
 	if ((*print_pc_args.warnflagp) & WARNF_SK_BUSY) {
 		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_SK_BUSY, _LNK_1_4_3);
 		kp_warning(globals->warnings, warn_indx, _LNK_1_4_3); NL;
@@ -1059,10 +1064,17 @@ kp_hc_kernfuncs()			/* Section 1.4.3 */
 		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_LARGE_NUMA_NODE, _LNK_1_4_3);
 		kp_warning(globals->warnings, warn_indx, _LNK_1_4_3); NL;
 	}
+
+	if ((*print_pc_args.warnflagp) & WARNF_KVM_HALT_POLL) {
+		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_KVM_HALT_POLL,  _LNK_1_4_3);
+		kp_warning(globals->warnings, warn_indx, _LNK_1_4_3); NL;
+	}
 }
 
 extern int pc_queued_spin_lock_slowpath;
 extern int pc_semctl;
+extern int pc_dd_bio_merge;
+extern int pc_dd_insert_requets;
 extern int pc_rwsem_down_write_failed;
 
 void
@@ -1097,6 +1109,11 @@ kp_hc_stktraces()			/* Section 1.4.4 */
 
 	if ((*print_pc_args.warnflagp) & WARNF_SEMLOCK) {
 		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_SEMLOCK, _LNK_1_4_4);
+		kp_warning(globals->warnings, warn_indx, _LNK_1_4_4); NL;
+	}
+
+	if ((*print_pc_args.warnflagp) & WARNF_MQDEADLINE) {
+		warn_indx = add_warning((void **)&globals->warnings, &globals->next_warning, WARN_MQDEADLINE, _LNK_1_4_4);
 		kp_warning(globals->warnings, warn_indx, _LNK_1_4_4); NL;
 	}
 

@@ -598,24 +598,24 @@ find_start_event() {
 
 	sprintf (fname, "itimes.%s", timestamp);
 	if ((itimes_fd = open(fname, O_RDONLY)) < 0) {
-		printf ("Unable to open %s (errno %d)\n", fname, errno);
+		fprintf (stderr, "Unable to open %s (errno %d)\n", fname, errno);
 		return 0;
 	}
 
 	if (fstat(itimes_fd, &statbuf) != 0) {
-		printf ("Unable to fstat %s (errno %d)\n", fname, errno);
+		fprintf (stderr, "Unable to fstat %s (errno %d)\n", fname, errno);
 		close(itimes_fd);
 		return 0;
 	}
 
 	if (statbuf.st_size == 0) {
-		printf ("%s has a length of zero\n", fname);
+		/* fprintf (stderr, "%s has a length of zero\n", fname); */
 		close(itimes_fd);
 		return 0;
 	}
 
 	if ((itimesp = (trace_info_save_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_PRIVATE, itimes_fd, 0)) == MAP_FAILED) {
-		printf ("Unable to mmap %s (errno %d)\n", fname, errno);
+		fprintf (stderr, "Unable to mmap %s (errno %d)\n", fname, errno);
 		close (itimes_fd);
 		return 0;
 	}

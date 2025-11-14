@@ -146,6 +146,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #define _HTTP_CLOCKSOURCE "clocksource.htm"
 #define _HTTP_SYSTEMD_USER "systemd_user.htm"
 #define _HTTP_MEMBLOCK_ALLOC "memblock_alloc.htm"
+#define _HTTP_MQDEADLINE "mqdeadline.htm"
+#define _HTTP_KVM_HALT_POLL "kvm_halt_poll.htm"
 #define _HTTP_4_5 "#subsection4.5"
 
 #define _MSG_LINK_INFO \

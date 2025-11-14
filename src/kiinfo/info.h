@@ -421,6 +421,7 @@ extern int	clear_pid_info(void *, void *);
 extern int	clear_hc_info(void **);
 extern int	clear_docker_info(void *, void *);
 extern void	clear_all_stats();
+extern void	clear_all_stats_startup();
 
 extern int add_filter_item(void *, uint64);
 extern int add_filter_item_str(void *, char *);
@@ -512,6 +513,8 @@ extern char	*reqop_name(uint64);
 extern int	reqop(uint64);
 extern void	print_cpu_buf_info();
 extern char	*irqflags(uint32);
+extern int	save_printk_value();
+extern int	restore_printk_value();
 
 
 extern int	check_filter(void *, uint64);

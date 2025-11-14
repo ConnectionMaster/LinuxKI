@@ -48,6 +48,8 @@ int pc_msleep = -1;
 int pc_ixgbe_read_i2c_byte_generic = -1;
 int pc_semctl = -1;
 int pc_semtimedop = -1;
+int pc_dd_bio_merge = -1;
+int pc_dd_insert_requests = -1;
 int pc_mutex_lock = -1;
 int pc_xfs_file_aio_read = -1;
 int pc_xfs_file_read_iter = -1;
@@ -1712,6 +1714,8 @@ parse_kallsyms()
 		else if (strcmp(globals->symtable[i].nameptr, "ixgbe_read_i2c_byte_generic") == 0)  pc_ixgbe_read_i2c_byte_generic = i; 
 		else if (strcmp(globals->symtable[i].nameptr, "sys_semtimedop") == 0) pc_semtimedop = i;
 		else if (strcmp(globals->symtable[i].nameptr, "sys_semctl") == 0) pc_semctl = i;
+		else if (strcmp(globals->symtable[i].nameptr, "dd_bio_merge") == 0) pc_dd_bio_merge = i;
+		else if (strcmp(globals->symtable[i].nameptr, "dd_insert_requests") == 0) pc_dd_insert_requests = i;
 		else if (strcmp(globals->symtable[i].nameptr, "inode_dio_wait") == 0) pc_inode_dio_wait = i;
 		else if (strcmp(globals->symtable[i].nameptr, "xfs_file_dio_aio_write") == 0) pc_xfs_file_dio_aio_write = i;
 		else if (strcmp(globals->symtable[i].nameptr, "mutex_lock") == 0) pc_mutex_lock = i;
